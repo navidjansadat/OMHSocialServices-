@@ -1,15 +1,33 @@
-# OMH Social Services — New Dynamic Site
+# OMH Social Services — Render Ready
 
-## اجرا
-1. Node.js 18+ نصب باشد.
-2. `npm install`
-3. متغیرهای محیطی تنظیم شود:
-   - `ADMIN_PASSWORD` حداقل 8 کاراکتر
-   - `SESSION_SECRET` یک مقدار طولانی و تصادفی
-4. `npm start`
-5. سایت: `/`
-6. پنل: `/admin`
+سایت Dynamic و RTL برای OMH Social Services.
 
-داده‌ها در SQLite داخل `data/omh.db` ذخیره می‌شوند.
+## اجرای محلی
+```bash
+npm install
+ADMIN_PASSWORD="your-password" SESSION_SECRET="your-long-secret" npm start
+```
+سایت: `http://localhost:3000`
+پنل: `http://localhost:3000/admin`
 
-ویژگی‌ها: خدمات کاملاً Dynamic، افزودن/ویرایش/حذف سرویس، تغییر قیمت، شماره و لینک‌ها، سفارش مشتری، مدیریت وضعیت سفارش، ثبت و تایید نظرات مشتریان، طراحی RTL و Responsive و انیمیشن‌های سبک.
+## Deploy روی Render
+این پروژه فایل `render.yaml` دارد و برای Render Web Service آماده است.
+
+1. پروژه را در GitHub داخل یک Repository جدید قرار دهید.
+2. در Render گزینه **New → Blueprint** را انتخاب کنید و Repository را وصل کنید؛ یا Web Service بسازید.
+3. اگر Blueprint استفاده شود، Build و Start و Persistent Disk از `render.yaml` خوانده می‌شود.
+4. مقدار `ADMIN_PASSWORD` را در Render تعیین کنید (حداقل ۸ کاراکتر؛ بهتر است طولانی و تصادفی باشد).
+5. `SESSION_SECRET` در Blueprint به‌صورت خودکار تولید می‌شود.
+6. Persistent Disk روی مسیر `/opt/render/project/src/data` قرار می‌گیرد تا `data/omh.db` پایدار بماند.
+
+## نکته مهم درباره Render Free
+Persistent Disk روی پلن‌های پولی Render در دسترس است. اگر سرویس روی پلن Free اجرا شود، SQLite برای نگهداری دائمی داده‌ها مناسب نیست و با Restart/Deploy ممکن است داده‌ها از بین بروند. برای سفارش‌ها، نظرات و تنظیمات واقعی، از پلنی با Persistent Disk استفاده کنید یا بعداً دیتابیس PostgreSQL را جایگزین کنید.
+
+## امکانات
+- خدمات Dynamic و قابل افزودن/ویرایش/حذف
+- قیمت‌های قابل تغییر از پنل
+- مدیریت شماره‌ها و لینک‌های WhatsApp/Telegram
+- ثبت سفارش مشتری و مدیریت وضعیت سفارش
+- ثبت و تأیید/حذف نظرات مشتری
+- مدیریت بخش‌ها از طریق دسته‌بندی خدمات
+- طراحی RTL، Responsive و انیمیشن‌های سبک
