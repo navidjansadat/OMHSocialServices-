@@ -1,33 +1,29 @@
 # OMH Social Services — Render Ready
 
-سایت Dynamic و RTL برای OMH Social Services.
-
-## اجرای محلی
-```bash
-npm install
-ADMIN_PASSWORD="your-password" SESSION_SECRET="your-long-secret" npm start
-```
-سایت: `http://localhost:3000`
-پنل: `http://localhost:3000/admin`
+نسخه نهایی سایت OMH Social Services با پنل مدیریت.
 
 ## Deploy روی Render
-این پروژه فایل `render.yaml` دارد و برای Render Web Service آماده است.
+1. کل پوشه را در GitHub آپلود کن.
+2. در Render یک Web Service بساز یا Blueprint را از `render.yaml` استفاده کن.
+3. Build Command: `npm install`
+4. Start Command: `npm start`
+5. Environment Variables:
+   - `SESSION_SECRET` یک مقدار طولانی و تصادفی
+   - `ADMIN_PASSWORD` رمز ورود پنل، حداقل ۸ کاراکتر
+6. بعد از Deploy برو به `/admin`.
 
-1. پروژه را در GitHub داخل یک Repository جدید قرار دهید.
-2. در Render گزینه **New → Blueprint** را انتخاب کنید و Repository را وصل کنید؛ یا Web Service بسازید.
-3. اگر Blueprint استفاده شود، Build و Start و Persistent Disk از `render.yaml` خوانده می‌شود.
-4. مقدار `ADMIN_PASSWORD` را در Render تعیین کنید (حداقل ۸ کاراکتر؛ بهتر است طولانی و تصادفی باشد).
-5. `SESSION_SECRET` در Blueprint به‌صورت خودکار تولید می‌شود.
-6. Persistent Disk روی مسیر `/opt/render/project/src/data` قرار می‌گیرد تا `data/omh.db` پایدار بماند.
+## امکانات پنل
+- تغییر نام و شعار سایت
+- تغییر عنوان و متن صفحه اصلی
+- تغییر شماره WhatsApp
+- تغییر لینک کانال و گروپ WhatsApp
+- تغییر Telegram و کانال Telegram
+- تغییر ایمیل و روش پرداخت
+- افزودن/حذف بخش خدمات
+- افزودن/حذف/ویرایش هر سرویس
+- تغییر قیمت، واحد، آیکن، توضیحات و ترتیب سرویس
+- فعال/غیرفعال کردن سرویس
+- مدیریت و تایید نظرات
+- مدیریت وضعیت سفارش‌ها
 
-## نکته مهم درباره Render Free
-Persistent Disk روی پلن‌های پولی Render در دسترس است. اگر سرویس روی پلن Free اجرا شود، SQLite برای نگهداری دائمی داده‌ها مناسب نیست و با Restart/Deploy ممکن است داده‌ها از بین بروند. برای سفارش‌ها، نظرات و تنظیمات واقعی، از پلنی با Persistent Disk استفاده کنید یا بعداً دیتابیس PostgreSQL را جایگزین کنید.
-
-## امکانات
-- خدمات Dynamic و قابل افزودن/ویرایش/حذف
-- قیمت‌های قابل تغییر از پنل
-- مدیریت شماره‌ها و لینک‌های WhatsApp/Telegram
-- ثبت سفارش مشتری و مدیریت وضعیت سفارش
-- ثبت و تأیید/حذف نظرات مشتری
-- مدیریت بخش‌ها از طریق دسته‌بندی خدمات
-- طراحی RTL، Responsive و انیمیشن‌های سبک
+نکته: اگر روی Render بدون Persistent Disk از SQLite استفاده شود، اطلاعات دیتابیس ممکن است هنگام بعضی redeploy/restartها پایدار نماند. برای داده‌های دائمی، Persistent Disk یا دیتابیس PostgreSQL توصیه می‌شود.
