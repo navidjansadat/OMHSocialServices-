@@ -1,1 +1,864 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OMH Social Services</title><link rel="stylesheet" href="/style.css"></head><body><header><a class="logo" href="#home">OMH<span>Social</span></a><nav><a href="#services">خدمات</a><a href="#digital">طراحی دیجیتال</a><a href="#reviews">نظرات</a><a href="#contact">ارتباط با ما</a></nav><a class="btn" href="#contact">سفارش</a></header><main><section id="home" class="hero"><div><div class="badge">⭐ کیفیت • اعتبار • امنیت</div><h1 id="heroTitle"></h1><p id="heroText"></p><div><a class="btn" href="#services">مشاهده خدمات</a><a class="btn ghost" href="#contact">ثبت سفارش</a></div></div><div class="hero-art"><div class="orb"></div><div class="floating">🚀 خدمات دیجیتال</div><div class="floating second">📱 Social Media</div></div></section><section id="services"><div class="section-head"><span>خدمات</span><h2>هر چیزی که برای حضور دیجیتال نیاز دارید</h2></div><div id="serviceGrid" class="grid"></div></section><section id="digital" class="split"><div><div class="badge">💻 Digital & Design</div><h2>طراحی وب‌سایت و اپلیکیشن</h2><p>طراحی وب‌سایت حرفه‌ای، فروشگاه اینترنتی، اپلیکیشن اندروید، بنر، پوستر، لوگو و ویدیوهای تبلیغاتی با ظاهر مدرن و اختصاصی.</p><a class="btn" href="#contact">درخواست طراحی</a></div><div class="visual-card"><div>🌐</div><b>Website</b><small>Modern • Responsive • Fast</small></div></section><section id="reviews"><div class="section-head"><span>اعتماد مشتریان</span><h2>نظرات مشتریان</h2></div><div id="reviewList" class="grid"></div><form id="reviewForm" class="form-card"><h3>نظر خود را بنویسید</h3><input name="name" placeholder="نام شما" required><select name="rating"><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select><textarea name="comment" placeholder="نظر شما..." required></textarea><button class="btn">ارسال نظر</button><p id="reviewMsg"></p></form></section><section id="contact" class="contact"><div><div class="badge">📞 ارتباط با ما</div><h2>برای ثبت سفارش با ما در تماس شوید</h2><p>روی یکی از گزینه‌ها بزنید و سفارش خود را مستقیم ارسال کنید.</p><div class="actions"><a id="wa" class="btn" target="_blank">WhatsApp</a><a id="tg" class="btn ghost" target="_blank">Telegram</a></div><div class="channels"><a id="wac" target="_blank">📢 کانال WhatsApp</a><a id="tgc" target="_blank">📢 کانال Telegram</a><a id="wag" target="_blank">👥 گروپ WhatsApp</a><a id="tgp" target="_blank">👤 Telegram شخصی</a></div></div><form id="orderForm" class="form-card"><h3>فرم سفارش</h3><input name="name" placeholder="نام" required><input name="contact" placeholder="شماره / آیدی واتساپ یا تلگرام" required><input name="service" placeholder="سرویس موردنظر"><input name="quantity" placeholder="تعداد / مقدار"><textarea name="message" placeholder="توضیحات سفارش"></textarea><button class="btn">ثبت سفارش</button><p id="orderMsg"></p></form></section></main><footer><b id="brand"></b><span>مرجع خدمات نوین دیجیتال</span><a href="/admin">Admin</a></footer><script src="/app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="theme-color" content="#061512">
+  <meta name="description" content="OMH Social Services | مرجع خدمات نوین دیجیتال">
+
+  <title>OMH Social Services | مرجع خدمات نوین دیجیتال</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+  <!-- Background -->
+  <div class="background-effects">
+    <div class="glow glow-one"></div>
+    <div class="glow glow-two"></div>
+    <div class="grid-background"></div>
+  </div>
+
+  <!-- ================= HEADER ================= -->
+  <header class="site-header">
+
+    <a href="#home" class="brand">
+      <div class="brand-logo">OMH</div>
+
+      <div class="brand-text">
+        <strong>OMH Social Services</strong>
+        <span>مرجع خدمات نوین دیجیتال</span>
+      </div>
+    </a>
+
+    <nav class="main-nav">
+      <a href="#home">خانه</a>
+      <a href="#services">خدمات</a>
+      <a href="#digital">طراحی دیجیتال</a>
+      <a href="#reviews">نظرات</a>
+      <a href="#contact">ارتباط با ما</a>
+    </nav>
+
+    <a href="#contact" class="header-order-btn">
+      ثبت سفارش
+      <span>←</span>
+    </a>
+
+    <button class="mobile-menu-btn" type="button" aria-label="منو">
+      ☰
+    </button>
+
+  </header>
+
+
+  <main>
+
+    <!-- ================= HERO ================= -->
+    <section id="home" class="hero-section">
+
+      <div class="hero-content reveal">
+
+        <div class="hero-badge">
+          <span class="status-dot"></span>
+          کیفیت • اعتبار • امنیت
+        </div>
+
+        <h1>
+          دنیای دیجیتال
+          <span>با OMH</span>
+        </h1>
+
+        <p class="hero-description">
+          ما در OMH Social Services با هدف تسهیل دسترسی شما
+          به خدمات دیجیتال، شبکه‌های اجتماعی و تکنولوژی،
+          خدمات سریع و حرفه‌ای ارائه می‌دهیم.
+        </p>
+
+        <div class="hero-buttons">
+
+          <a href="#services" class="primary-btn">
+            مشاهده خدمات
+            <span>←</span>
+          </a>
+
+          <a href="#contact" class="secondary-btn">
+            ثبت سفارش
+          </a>
+
+        </div>
+
+        <div class="hero-features">
+
+          <div class="hero-feature">
+            <span>⚡</span>
+            <div>
+              <strong>سریع</strong>
+              <small>انجام منظم خدمات</small>
+            </div>
+          </div>
+
+          <div class="hero-feature">
+            <span>🔐</span>
+            <div>
+              <strong>امن</strong>
+              <small>توجه به امنیت مشتری</small>
+            </div>
+          </div>
+
+          <div class="hero-feature">
+            <span>⭐</span>
+            <div>
+              <strong>معتبر</strong>
+              <small>تمرکز بر رضایت</small>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Hero Visual -->
+
+      <div class="hero-visual reveal">
+
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="orbit orbit-three"></div>
+
+        <div class="hero-center">
+
+          <div class="hero-center-inner">
+            <strong>OMH</strong>
+            <span>SOCIAL</span>
+            <small>SERVICES</small>
+          </div>
+
+        </div>
+
+        <div class="floating-card floating-card-one">
+
+          <div class="floating-icon">📱</div>
+
+          <div>
+            <strong>Social Media</strong>
+            <small>Facebook • Instagram • TikTok</small>
+          </div>
+
+        </div>
+
+        <div class="floating-card floating-card-two">
+
+          <div class="floating-icon">💻</div>
+
+          <div>
+            <strong>Digital Services</strong>
+            <small>Web • App • Design</small>
+          </div>
+
+        </div>
+
+        <div class="floating-card floating-card-three">
+
+          <div class="floating-icon">🚀</div>
+
+          <div>
+            <strong>OMH</strong>
+            <small>Digital Solutions</small>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= QUICK SERVICES ================= -->
+
+    <section class="quick-services">
+
+      <div class="quick-service">
+        <div>📈</div>
+        <span>خدمات شبکه‌های اجتماعی</span>
+      </div>
+
+      <div class="quick-service">
+        <div>💻</div>
+        <span>طراحی وب‌سایت و اپلیکیشن</span>
+      </div>
+
+      <div class="quick-service">
+        <div>📲</div>
+        <span>شماره‌های مجازی</span>
+      </div>
+
+      <div class="quick-service">
+        <div>💬</div>
+        <span>سفارش و پشتیبانی</span>
+      </div>
+
+    </section>
+
+
+    <!-- ================= SOCIAL SERVICES ================= -->
+
+    <section id="services" class="section services-section">
+
+      <div class="section-heading reveal">
+
+        <div class="section-label">
+          SOCIAL MEDIA
+        </div>
+
+        <h2>
+          خدمات شبکه‌های اجتماعی
+        </h2>
+
+        <p>
+          خدمات مورد نیاز صفحات اجتماعی خود را انتخاب کنید.
+          سرویس‌ها و قیمت‌ها از پنل مدیریت قابل تغییر هستند.
+        </p>
+
+      </div>
+
+
+      <div id="serviceGrid" class="service-grid">
+
+        <!-- Services are loaded dynamically -->
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= DIGITAL SERVICES ================= -->
+
+    <section id="digital" class="section digital-section">
+
+      <div class="section-heading reveal">
+
+        <div class="section-label">
+          DIGITAL & DESIGN
+        </div>
+
+        <h2>
+          خدمات طراحی و دیجیتال
+        </h2>
+
+        <p>
+          از ایده تا اجرای پروژه، راهکارهای دیجیتال حرفه‌ای
+          برای کسب‌وکار و پروژه شخصی شما.
+        </p>
+
+      </div>
+
+
+      <div class="digital-grid">
+
+        <!-- Website -->
+
+        <article class="digital-card">
+
+          <div class="digital-card-top">
+            <div class="digital-icon">🌐</div>
+            <span class="card-number">01</span>
+          </div>
+
+          <h3>
+            طراحی وب‌سایت
+          </h3>
+
+          <p>
+            طراحی وب‌سایت‌های مدرن، سریع، Responsive و
+            متناسب با نیاز کسب‌وکار شما.
+          </p>
+
+          <a href="#contact"
+             class="service-request"
+             data-service="طراحی وب‌سایت">
+
+            درخواست طراحی
+            <span>←</span>
+
+          </a>
+
+        </article>
+
+
+        <!-- App -->
+
+        <article class="digital-card">
+
+          <div class="digital-card-top">
+            <div class="digital-icon">📱</div>
+            <span class="card-number">02</span>
+          </div>
+
+          <h3>
+            طراحی اپلیکیشن
+          </h3>
+
+          <p>
+            طراحی و توسعه اپلیکیشن‌های اندروید با رابط کاربری
+            زیبا و تجربه کاربری حرفه‌ای.
+          </p>
+
+          <a href="#contact"
+             class="service-request"
+             data-service="طراحی اپلیکیشن اندروید">
+
+            درخواست طراحی
+            <span>←</span>
+
+          </a>
+
+        </article>
+
+
+        <!-- Graphic -->
+
+        <article class="digital-card">
+
+          <div class="digital-card-top">
+            <div class="digital-icon">🎨</div>
+            <span class="card-number">03</span>
+          </div>
+
+          <h3>
+            طراحی گرافیکی
+          </h3>
+
+          <p>
+            طراحی لوگو، پوستر، بنر و محتوای بصری برای برند
+            و شبکه‌های اجتماعی.
+          </p>
+
+          <a href="#contact"
+             class="service-request"
+             data-service="طراحی گرافیکی">
+
+            درخواست طراحی
+            <span>←</span>
+
+          </a>
+
+        </article>
+
+
+        <!-- Video -->
+
+        <article class="digital-card">
+
+          <div class="digital-card-top">
+            <div class="digital-icon">🎬</div>
+            <span class="card-number">04</span>
+          </div>
+
+          <h3>
+            ویدیوی تبلیغاتی
+          </h3>
+
+          <p>
+            ساخت ویدیوهای تبلیغاتی جذاب برای معرفی محصولات،
+            خدمات و برند شما.
+          </p>
+
+          <a href="#contact"
+             class="service-request"
+             data-service="ویدیوی تبلیغاتی">
+
+            درخواست طراحی
+            <span>←</span>
+
+          </a>
+
+        </article>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= WHY US ================= -->
+
+    <section class="section why-section">
+
+      <div class="why-visual reveal">
+
+        <div class="why-circle">
+
+          <strong>OMH</strong>
+
+          <span>
+            DIGITAL
+          </span>
+
+          <small>
+            TRUST • QUALITY • SECURITY
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <div class="why-content reveal">
+
+        <div class="section-label">
+          WHY OMH?
+        </div>
+
+        <h2>
+          چرا OMH Social Services؟
+        </h2>
+
+        <p class="why-intro">
+          هدف ما ارائه خدمات ساده، سریع و حرفه‌ای برای
+          مشتریانی است که به دنبال یک مرجع دیجیتال مطمئن هستند.
+        </p>
+
+
+        <div class="why-list">
+
+          <div class="why-item">
+
+            <div class="why-number">
+              01
+            </div>
+
+            <div>
+              <h3>
+                تنوع خدمات
+              </h3>
+
+              <p>
+                خدمات شبکه‌های اجتماعی، طراحی دیجیتال،
+                شماره‌های مجازی و خدمات بیشتر در یک مجموعه.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="why-item">
+
+            <div class="why-number">
+              02
+            </div>
+
+            <div>
+              <h3>
+                مدیریت آسان
+              </h3>
+
+              <p>
+                خدمات، قیمت‌ها، شماره‌ها و اطلاعات سایت
+                از پنل مدیریت قابل تغییر هستند.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="why-item">
+
+            <div class="why-number">
+              03
+            </div>
+
+            <div>
+              <h3>
+                ارتباط مستقیم
+              </h3>
+
+              <p>
+                برای سفارش می‌توانید مستقیماً از طریق
+                WhatsApp یا Telegram با ما ارتباط بگیرید.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= REVIEWS ================= -->
+
+    <section id="reviews" class="section reviews-section">
+
+      <div class="section-heading">
+
+        <div class="section-label">
+          CUSTOMER REVIEWS
+        </div>
+
+        <h2>
+          نظر مشتریان
+        </h2>
+
+        <p>
+          تجربه خود را با OMH با دیگران شریک شوید.
+        </p>
+
+      </div>
+
+
+      <div id="reviewList" class="review-grid">
+
+        <!-- Reviews loaded dynamically -->
+
+      </div>
+
+
+      <form id="reviewForm" class="form-card review-form">
+
+        <div class="form-heading">
+
+          <div class="form-icon">
+            ⭐
+          </div>
+
+          <div>
+            <h3>
+              ثبت نظر
+            </h3>
+
+            <p>
+              نظر شما پس از بررسی مدیریت نمایش داده می‌شود.
+            </p>
+          </div>
+
+        </div>
+
+
+        <div class="form-row">
+
+          <input
+            type="text"
+            name="name"
+            placeholder="نام شما"
+            required
+          >
+
+          <select name="rating">
+
+            <option value="5">
+              ★★★★★ عالی
+            </option>
+
+            <option value="4">
+              ★★★★ خوب
+            </option>
+
+            <option value="3">
+              ★★★ متوسط
+            </option>
+
+            <option value="2">
+              ★★ نیاز به بهبود
+            </option>
+
+            <option value="1">
+              ★ ضعیف
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <textarea
+          name="comment"
+          placeholder="نظر خود را بنویسید..."
+          required
+        ></textarea>
+
+
+        <button type="submit" class="primary-btn">
+          ارسال نظر
+          <span>→</span>
+        </button>
+
+        <p id="reviewMsg" class="form-message"></p>
+
+      </form>
+
+    </section>
+
+
+    <!-- ================= CONTACT ================= -->
+
+    <section id="contact" class="section contact-section">
+
+      <div class="contact-content reveal">
+
+        <div class="section-label">
+          CONTACT & ORDER
+        </div>
+
+        <h2>
+          برای سفارش آماده‌ای؟
+        </h2>
+
+        <p>
+          سرویس مورد نظر خود را انتخاب کنید و از طریق
+          WhatsApp یا Telegram با ما در تماس شوید.
+          همچنین می‌توانید فرم سفارش را ارسال کنید.
+        </p>
+
+
+        <div class="contact-buttons">
+
+          <a
+            id="wa"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            class="contact-button whatsapp-button"
+          >
+
+            <span class="contact-icon">
+              💬
+            </span>
+
+            <span>
+              <strong>
+                WhatsApp
+              </strong>
+
+              <small>
+                سفارش مستقیم
+              </small>
+            </span>
+
+            <b>←</b>
+
+          </a>
+
+
+          <a
+            id="tg"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            class="contact-button telegram-button"
+          >
+
+            <span class="contact-icon">
+              ✈️
+            </span>
+
+            <span>
+              <strong>
+                Telegram
+              </strong>
+
+              <small>
+                سفارش مستقیم
+              </small>
+            </span>
+
+            <b>←</b>
+
+          </a>
+
+        </div>
+
+
+        <!-- Channels -->
+
+        <div class="channels-box">
+
+          <div class="channels-heading">
+
+            <span>
+              📢
+            </span>
+
+            <div>
+              <h3>
+                کانال‌ها و ارتباطات
+              </h3>
+
+              <p>
+                ما را در شبکه‌های اجتماعی دنبال کنید.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="channels-grid">
+
+            <a id="wac" href="#" target="_blank" rel="noopener">
+              <span>💬</span>
+              کانال WhatsApp
+            </a>
+
+            <a id="tgc" href="#" target="_blank" rel="noopener">
+              <span>✈️</span>
+              کانال Telegram
+            </a>
+
+            <a id="wag" href="#" target="_blank" rel="noopener">
+              <span>👥</span>
+              گروپ WhatsApp
+            </a>
+
+            <a id="tgp" href="#" target="_blank" rel="noopener">
+              <span>👤</span>
+              Telegram شخصی
+            </a>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- Order Form -->
+
+      <form id="orderForm" class="form-card order-form reveal">
+
+        <div class="form-heading">
+
+          <div class="form-icon">
+            🛒
+          </div>
+
+          <div>
+            <h3>
+              ثبت سفارش
+            </h3>
+
+            <p>
+              معلومات سفارش خود را وارد کنید.
+            </p>
+          </div>
+
+        </div>
+
+
+        <label>
+          نام شما
+          <input
+            type="text"
+            name="name"
+            placeholder="نام و نام خانوادگی"
+            required
+          >
+        </label>
+
+
+        <label>
+          شماره یا آیدی تماس
+          <input
+            type="text"
+            name="contact"
+            placeholder="WhatsApp / Telegram"
+            required
+          >
+        </label>
+
+
+        <label>
+          سرویس مورد نظر
+          <input
+            type="text"
+            name="service"
+            placeholder="مثلاً Facebook Followers"
+          >
+        </label>
+
+
+        <label>
+          تعداد / مقدار
+          <input
+            type="text"
+            name="quantity"
+            placeholder="مثلاً 1000"
+          >
+        </label>
+
+
+        <label>
+          توضیحات
+          <textarea
+            name="message"
+            placeholder="توضیحات سفارش..."
+          ></textarea>
+        </label>
+
+
+        <button type="submit" class="primary-btn order-submit">
+          ثبت سفارش
+          <span>→</span>
+        </button>
+
+        <p id="orderMsg" class="form-message"></p>
+
+      </form>
+
+    </section>
+
+  </main>
+
+
+  <!-- ================= FOOTER ================= -->
+
+  <footer class="site-footer">
+
+    <div class="footer-brand">
+
+      <div class="footer-logo">
+        OMH
+      </div>
+
+      <div>
+        <strong id="brand">
+          OMH Social Services
+        </strong>
+
+        <span>
+          مرجع خدمات نوین دیجیتال
+        </span>
+      </div>
+
+    </div>
+
+
+    <div class="footer-links">
+
+      <a href="#home">خانه</a>
+      <a href="#services">خدمات</a>
+      <a href="#digital">طراحی دیجیتال</a>
+      <a href="#reviews">نظرات</a>
+      <a href="#contact">ارتباط</a>
+      <a href="/admin">پنل مدیریت</a>
+
+    </div>
+
+
+    <div class="footer-copy">
+      © <span id="year"></span> OMH Social Services
+    </div>
+
+  </footer>
+
+
+  <script src="/app.js"></script>
+
+</body>
+</html>
