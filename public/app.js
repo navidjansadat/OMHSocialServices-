@@ -1,30 +1,399 @@
-'use strict';
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-let DATA=null;
-const FALLBACK={whatsapp:'93748070273',telegram:'@omhsocial',whatsappChannel:'https://whatsapp.com/channel/0029VbC27wl9mrGcV1D6aa3O',whatsappGroup:'https://chat.whatsapp.com/LhwXxaXGEy5F4pq0GdqV5s?s=cl&p=a&ilr=0',telegramChannel:'https://t.me/OMHSocialServices'};
-const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function tgUrl(v){v=String(v||'').trim();return v.startsWith('http')?v:'https://t.me/'+v.replace(/^@/,'');}
-function waUrl(v){let n=String(v||'').replace(/\D/g,'');return n?'https://wa.me/'+n:'';}
-async function load(){try{const r=await fetch('/api/public');if(!r.ok)throw new Error();DATA=await r.json();render();}catch(e){console.error(e);$('#serviceGrid').innerHTML='<div class="card"><h4>خطا در دریافت اطلاعات</h4><p>لطفاً صفحه را دوباره باز کنید.</p></div>';}}
-function render(){const s=DATA.settings||{};renderAnnouncement(s);$('#brand').textContent=s.brand||'OMH Social Services';$('#footerBrand').textContent=s.brand||'OMH Social Services';$('#heroTitle').innerHTML=esc(s.heroTitle||'حضور دیجیتال خود را به سطح بالاتری ببرید').replace(/(دیجیتال|بالاتری)/g,'<span>$1</span>');$('#heroText').textContent=s.heroText||'';$('#aboutTitle').textContent=s.aboutTitle||'';$('#aboutText').textContent=s.aboutText||'';const wa=waUrl(s.whatsapp||FALLBACK.whatsapp);$('#wa').href=wa;$('#tg').href=tgUrl(s.telegram||FALLBACK.telegram);$('#wac').href=s.whatsappChannel||FALLBACK.whatsappChannel;$('#wag').href=s.whatsappGroup||FALLBACK.whatsappGroup;$('#tgc').href=s.telegramChannel||FALLBACK.telegramChannel;$('#tgp').href=tgUrl(s.telegram||FALLBACK.telegram);renderServices(DATA.services||[]);renderReviews(DATA.reviews||[]);$('#year').textContent=new Date().getFullYear();setupReveal();}
-const NETWORK_ICONS={
-  facebook:'https://cdn.simpleicons.org/facebook/1877F2',
-  instagram:'https://cdn.simpleicons.org/instagram/E4405F',
-  whatsapp:'https://cdn.simpleicons.org/whatsapp/25D366',
-  telegram:'https://cdn.simpleicons.org/telegram/26A5E4',
-  tiktok:'https://cdn.simpleicons.org/tiktok/ffffff',
-  website:'https://cdn.simpleicons.org/googlechrome/ffffff',
-  android:'https://cdn.simpleicons.org/android/3DDC84',
-  phone:'https://cdn.simpleicons.org/phonepe/ffffff',
-  account:'https://cdn.simpleicons.org/user/ffffff'
+// ==================== STATE ====================
+let state = {
+    services: [],
+    categories: [],
+    announcements: [],
+    reviews: [],
+    contactSettings: {}
 };
-function iconKey(category,name){const v=`${category||''} ${name||''}`.toLowerCase();if(v.includes('facebook')||v.includes('فیسبوک'))return'facebook';if(v.includes('instagram')||v.includes('اینستاگرام'))return'instagram';if(v.includes('whatsapp')||v.includes('واتساپ'))return'whatsapp';if(v.includes('telegram')||v.includes('تلگرام'))return'telegram';if(v.includes('tiktok')||v.includes('تیک'))return'tiktok';if(v.includes('website')||v.includes('web')||v.includes('وب‌سایت')||v.includes('وبسایت'))return'website';if(v.includes('android')||v.includes('app')||v.includes('اپلیکیشن')||v.includes('برنامه'))return'android';if(v.includes('phone')||v.includes('number')||v.includes('شماره'))return'phone';if(v.includes('account')||v.includes('اکانت'))return'account';return null;}
-function iconHTML(value,category,name,cls){const key=iconKey(category,name);if(value&&/^https?:\/\//i.test(String(value)))return`<img class="${cls}" src="${esc(value)}" alt="" loading="lazy" onerror="this.style.display='none'">`;if(key&&NETWORK_ICONS[key])return`<img class="${cls}" src="${NETWORK_ICONS[key]}" alt="${esc(name||category||'')}`+`" loading="lazy">`;return`<span class="${cls} icon-fallback">${esc(value||'✨')}</span>`;}
-function renderAnnouncement(s){let bar=document.getElementById('announcementBar');if(!bar){bar=document.createElement('div');bar.id='announcementBar';bar.className='announcement-bar';document.body.prepend(bar)}const text=String(s.announcement||'').trim();const exp=Number(s.announcementExpires||0);if(!text||(exp&&exp<=Date.now())){bar.style.display='none';return}bar.innerHTML='<span class="announcement-icon">📢</span><div class="announcement-track"><span>'+esc(text)+'</span></div><span class="announcement-live">24H</span>';bar.style.display='flex';if(exp){setTimeout(()=>renderAnnouncement({...s,announcement:''}),Math.max(0,exp-Date.now()));}}
-function renderServices(items){const g=$('#serviceGrid');const groups={};items.forEach(x=>(groups[x.category]??=[]).push(x));g.innerHTML=Object.entries(groups).map(([cat,arr])=>`<section class="service-group reveal"><div class="group-head"><div class="group-title"><div class="group-icon">${iconHTML(arr[0]?.icon,cat,'','network-icon')}</div><div><h3>${esc(cat)}</h3><p>قابل تغییر از پنل مدیریت</p></div></div></div><div class="service-cards">${arr.filter(x=>x.name).map(x=>`<article class="card"><div class="icon">${iconHTML(x.icon,cat,x.name,'service-icon')}</div><h4>${esc(x.name)}</h4><p>${esc(x.description||'خدمات قابل سفارش از OMH Social Services')}</p>${x.price?`<strong class="price">${esc(x.price)} ${esc(x.unit||'AFN')}</strong>`:'<span class="muted">قیمت قابل تنظیم از پنل</span>'}<a class="order-link" href="#contact" data-service="${esc(x.name)}">سفارش این سرویس ←</a></article>`).join('')||'<div class="card"><h4>سرویس جدید</h4><p>از پنل مدیریت سرویس اضافه کنید.</p></div>'}</div></section>`).join('')||'<div class="card"><h4>هنوز سرویسی اضافه نشده است.</h4><p>از پنل مدیریت بخش‌ها و سرویس‌ها را اضافه کنید.</p></div>';}
-function renderReviews(items){$('#reviewList').innerHTML=items.length?items.map(x=>`<article class="review"><b>${esc(x.name)}</b><p>${esc(x.comment)}</p></article>`).join(''):'<div class="review"><b>هنوز نظری ثبت نشده است.</b><p>اولین نفری باشید که تجربه خود را ثبت می‌کند.</p></div>';}
-document.addEventListener('click',e=>{const a=e.target.closest('.order-link,.service-request');if(!a)return;const input=$('#orderForm [name="service"]');if(input)input.value=a.dataset.service||'';});
-$('#orderForm').addEventListener('submit',async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));const msg=$('#orderMsg');msg.textContent='در حال ثبت سفارش...';try{const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const j=await r.json();if(!r.ok)throw new Error(j.error||'خطا');msg.textContent='سفارش ثبت شد. در حال انتقال به WhatsApp...';const text=encodeURIComponent(`سلام، سفارش جدید دارم.\n\nنام: ${data.name}\nسرویس: ${data.service||'-'}\nتعداد: ${data.quantity||'-'}\nراه ارتباطی: ${data.contact}\nتوضیحات: ${data.message||'-'}\n\nشماره سفارش سایت: ${j.id}`);window.open(waUrl(DATA.settings.whatsapp||FALLBACK.whatsapp)+'?text='+text,'_blank');e.target.reset();}catch(err){msg.textContent=err.message;}});
-$('#reviewForm').addEventListener('submit',async e=>{e.preventDefault();const msg=$('#reviewMsg');msg.textContent='در حال ارسال...';try{const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});const j=await r.json();if(!r.ok)throw new Error(j.error||'خطا');msg.textContent=j.message;e.target.reset();}catch(err){msg.textContent=err.message;}});
-function setupReveal(){const els=$$('.reveal');if(!('IntersectionObserver'in window)){els.forEach(x=>x.classList.add('revealed'));return;}const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('revealed');io.unobserve(en.target);}}),{threshold:.08});els.forEach(x=>io.observe(x));}
-$('.mobile-menu-btn').addEventListener('click',()=>$('.main-nav').classList.toggle('mobile-open'));$$('.main-nav a').forEach(a=>a.addEventListener('click',()=>$('.main-nav').classList.remove('mobile-open')));load();
+
+// ==================== DOM REFERENCES ====================
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+// ==================== API HELPERS ====================
+const API = {
+    async get(endpoint) {
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    },
+    
+    async post(endpoint, data) {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    }
+};
+
+// ==================== HAMBURGER MENU ====================
+const hamburger = $('#hamburger');
+const navMenu = $('#navMenu');
+
+if (hamburger && navMenu) {
+    hamburger.addEventListener('click', () => {
+        hamburger.classList.toggle('active');
+        navMenu.classList.toggle('active');
+        document.body.style.overflow = navMenu.classList.contains('active') ? 'hidden' : '';
+    });
+
+    // Close menu on link click
+    navMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            hamburger.classList.remove('active');
+            navMenu.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    });
+}
+
+// ==================== HEADER SCROLL EFFECT ====================
+const header = $('#header');
+let lastScroll = 0;
+
+window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+    if (currentScroll > 50) {
+        header.classList.add('scrolled');
+    } else {
+        header.classList.remove('scrolled');
+    }
+    lastScroll = currentScroll;
+});
+
+// ==================== ANNOUNCEMENTS ====================
+async function loadAnnouncements() {
+    try {
+        const data = await API.get('/api/announcements');
+        state.announcements = data;
+        renderAnnouncements(data);
+    } catch (err) {
+        console.error('Error loading announcements:', err);
+    }
+}
+
+function renderAnnouncements(announcements) {
+    const track = $('#announcementTrack');
+    if (!track) return;
+    
+    if (!announcements || announcements.length === 0) {
+        track.innerHTML = `<span class="announcement-item">📢 خوش آمدید به OMH Social Services</span>`;
+        return;
+    }
+    
+    const html = announcements.map(a => `
+        <span class="announcement-item">
+            ${a.title} — ${a.content}
+            ${a.end_date ? `<span class="countdown" data-end="${a.end_date}"></span>` : ''}
+        </span>
+    `).join('');
+    
+    track.innerHTML = html;
+    
+    // Countdown timers
+    track.querySelectorAll('.countdown[data-end]').forEach(el => {
+        updateCountdown(el);
+        setInterval(() => updateCountdown(el), 1000);
+    });
+}
+
+function updateCountdown(el) {
+    const end = new Date(el.dataset.end);
+    const now = new Date();
+    const diff = Math.max(0, end - now);
+    
+    if (diff === 0) {
+        el.textContent = '⏰ پایان یافته';
+        return;
+    }
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    el.textContent = `⏱ ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+// ==================== SERVICES ====================
+async function loadServices() {
+    try {
+        const data = await API.get('/api/services');
+        state.services = data;
+        renderServices(data);
+    } catch (err) {
+        console.error('Error loading services:', err);
+    }
+}
+
+function renderServices(services) {
+    const container = $('#servicesContainer');
+    if (!container) return;
+    
+    if (!services || services.length === 0) {
+        container.innerHTML = `
+            <div class="service-card glass-card" style="grid-column: 1/-1; text-align: center; padding: 48px;">
+                <p style="color: #4a6a4a; font-size: 1.1rem;">هیچ سرویسی در حال حاضر موجود نیست.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const html = services.map(s => {
+        const iconHtml = s.icon_url 
+            ? `<img src="${s.icon_url}" alt="${s.title}" />` 
+            : `<i class="fas fa-cube"></i>`;
+        
+        return `
+            <div class="service-card reveal">
+                <div class="service-icon">${iconHtml}</div>
+                <span class="service-category">${s.category || 'عمومی'}</span>
+                <h3>${s.title}</h3>
+                <p class="service-description">${s.description || ''}</p>
+                ${s.price ? `<div class="service-price">${s.price}</div>` : ''}
+                ${s.unit ? `<div class="service-unit">${s.unit}</div>` : ''}
+                <div class="service-actions">
+                    <a href="#contact" class="btn btn-primary btn-sm order-btn" data-service="${s.title}">سفارش ←</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+    
+    // Set service name on order button click
+    container.querySelectorAll('.order-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const serviceName = btn.dataset.service;
+            const serviceInput = $('#serviceName');
+            if (serviceInput) {
+                serviceInput.value = serviceName;
+            }
+        });
+    });
+    
+    // Reveal animations
+    observeReveal();
+}
+
+// ==================== CATEGORIES ====================
+async function loadCategories() {
+    try {
+        const data = await API.get('/api/categories');
+        state.categories = data;
+    } catch (err) {
+        console.error('Error loading categories:', err);
+    }
+}
+
+// ==================== REVIEWS ====================
+async function loadReviews() {
+    try {
+        const data = await API.get('/api/reviews');
+        state.reviews = data;
+        renderReviews(data);
+    } catch (err) {
+        console.error('Error loading reviews:', err);
+    }
+}
+
+function renderReviews(reviews) {
+    const container = $('#reviewsContainer');
+    if (!container) return;
+    
+    if (!reviews || reviews.length === 0) {
+        container.innerHTML = `
+            <div class="review-card glass-card" style="grid-column: 1/-1; text-align: center; padding: 40px;">
+                <p style="color: #4a6a4a;">هنوز نظری ثبت نشده است.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const colors = ['#2d8f4e', '#1a6b3a', '#3a9f5e', '#0a4a2a'];
+    
+    const html = reviews.map((r, i) => {
+        const initial = r.customer_name ? r.customer_name.charAt(0) : '?';
+        const color = colors[i % colors.length];
+        
+        const avatarHtml = r.avatar 
+            ? `<img src="${r.avatar}" alt="${r.customer_name}" />` 
+            : initial;
+        
+        return `
+            <div class="review-card reveal">
+                <div class="review-header">
+                    <div class="review-avatar" style="background: ${color};">${avatarHtml}</div>
+                    <div>
+                        <div class="review-name">${r.customer_name || 'ناشناس'}</div>
+                        <div class="review-date">${r.created_at ? new Date(r.created_at).toLocaleDateString('fa-IR') : ''}</div>
+                    </div>
+                </div>
+                <p class="review-content">«${r.content || ''}»</p>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+    observeReveal();
+}
+
+// ==================== CONTACT SETTINGS ====================
+async function loadContactSettings() {
+    try {
+        const data = await API.get('/api/contact-settings');
+        state.contactSettings = data;
+        applyContactSettings(data);
+    } catch (err) {
+        console.error('Error loading contact settings:', err);
+    }
+}
+
+function applyContactSettings(settings) {
+    // WhatsApp link
+    const whatsappLink = $('#whatsappLink');
+    if (whatsappLink && settings.whatsapp_url) {
+        whatsappLink.href = settings.whatsapp_url;
+    }
+    
+    // Telegram link
+    const telegramLink = $('#telegramLink');
+    if (telegramLink && settings.telegram_url) {
+        telegramLink.href = settings.telegram_url;
+    }
+    
+    // Telegram channel
+    const telegramChannel = $('#telegramChannel');
+    if (telegramChannel && settings.telegram_channel) {
+        telegramChannel.href = settings.telegram_channel;
+    }
+    
+    // WhatsApp channel
+    const whatsappChannel = $('#whatsappChannel');
+    if (whatsappChannel && settings.whatsapp_channel) {
+        whatsappChannel.href = settings.whatsapp_channel;
+    }
+    
+    // Hero title
+    const heroTitle = $('#heroTitle');
+    if (heroTitle && settings.hero_title) {
+        heroTitle.textContent = settings.hero_title;
+    }
+    
+    // Hero description
+    const heroDesc = $('#heroDescription');
+    if (heroDesc && settings.hero_description) {
+        heroDesc.textContent = settings.hero_description;
+    }
+    
+    // Logo
+    if (settings.logo_url) {
+        document.querySelectorAll('.header-logo, .footer-logo, .orbit-logo').forEach(el => {
+            if (el) el.src = settings.logo_url;
+        });
+    }
+    
+    // Brand name
+    if (settings.brand_name) {
+        document.querySelectorAll('.brand-title, .footer-title').forEach(el => {
+            if (el) el.textContent = settings.brand_name;
+        });
+    }
+    
+    // Brand subtitle
+    if (settings.brand_subtitle) {
+        document.querySelectorAll('.brand-subtitle, .footer-subtitle').forEach(el => {
+            if (el) el.textContent = settings.brand_subtitle;
+        });
+    }
+}
+
+// ==================== ORDER FORM ====================
+const orderForm = $('#orderForm');
+if (orderForm) {
+    orderForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const name = $('#customerName').value.trim();
+        const contact = $('#contactMethod').value.trim();
+        const service = $('#serviceName').value.trim();
+        const quantity = $('#quantity').value.trim();
+        const link = $('#pageLink').value.trim();
+        const notes = $('#orderNotes').value.trim();
+        
+        if (!name || !contact || !service || !quantity) {
+            alert('لطفاً تمام فیلدهای ضروری را پر کنید.');
+            return;
+        }
+        
+        const message = `سلام، می‌خواهم سفارش ثبت کنم.
+
+📋 اطلاعات سفارش:
+👤 نام: ${name}
+📱 راه ارتباطی: ${contact}
+📦 سرویس: ${service}
+🔢 تعداد: ${quantity}
+🔗 لینک: ${link || 'ندارد'}
+📝 توضیحات: ${notes || 'ندارد'}`;
+        
+        const encoded = encodeURIComponent(message);
+        const settings = state.contactSettings;
+        const whatsappUrl = settings.whatsapp_url || 'https://wa.me/1234567890';
+        const finalUrl = whatsappUrl.includes('?') 
+            ? `${whatsappUrl}&text=${encoded}`
+            : `${whatsappUrl}?text=${encoded}`;
+        
+        window.open(finalUrl, '_blank');
+        
+        // Reset form
+        orderForm.reset();
+    });
+}
+
+// ==================== SCROLL REVEAL ====================
+function observeReveal() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+    
+    document.querySelectorAll('.reveal').forEach(el => {
+        observer.observe(el);
+    });
+}
+
+// ==================== FOOTER YEAR ====================
+const yearEl = $('#currentYear');
+if (yearEl) {
+    yearEl.textContent = new Date().getFullYear();
+}
+
+// ==================== INIT ====================
+async function init() {
+    try {
+        await Promise.all([
+            loadAnnouncements(),
+            loadServices(),
+            loadCategories(),
+            loadReviews(),
+            loadContactSettings()
+        ]);
+    } catch (err) {
+        console.error('Init error:', err);
+    }
+    
+    // Observe initial elements
+    setTimeout(observeReveal, 100);
+}
+
+// Start app
+document.addEventListener('DOMContentLoaded', init);
