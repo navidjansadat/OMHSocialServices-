@@ -1,23 +1,10 @@
 # OMH Social Services
+Professional digital services platform with a three-level service catalog:
+Category → Subcategory → Service.
 
-مرجع خدمات نوین دیجیتال - پلتفرم حرفه‌ای خدمات شبکه‌های اجتماعی و طراحی دیجیتال.
+## Render
+Build: `npm install`
+Start: `npm start`
+Set `ADMIN_PASSWORD` and `SESSION_SECRET` in Render Environment Variables.
 
-## ویژگی‌ها
-
-- ✅ طراحی مدرن با Glassmorphism و انیمیشن‌های حرفه‌ای
-- ✅ مدیریت کامل خدمات از طریق پنل ادمین
-- ✅ سیستم اعلانات با تایمر شمارش معکوس
-- ✅ سیستم نظرات با تأیید ادمین
-- ✅ فرم سفارش با ارسال مستقیم به WhatsApp
-- ✅ کاملاً ریسپانسیو برای تمام دستگاه‌ها
-- ✅ قابل دیپلوی روی Render
-
-## نصب و راه‌اندازی
-
-1. کلون کردن پروژه:
-```bash
-git clone <repository-url>
-cd omh-social-services- مدیریت و تایید نظرات
-- مدیریت وضعیت سفارش‌ها
-
-نکته: اگر روی Render بدون Persistent Disk از SQLite استفاده شود، اطلاعات دیتابیس ممکن است هنگام بعضی redeploy/restartها پایدار نماند. برای داده‌های دائمی، Persistent Disk یا دیتابیس PostgreSQL توصیه می‌شود.
+Admin: `/admin`

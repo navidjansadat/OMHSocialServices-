@@ -2,18 +2,10 @@ services:
   - type: web
     name: omh-social-services
     runtime: node
-    plan: free
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: ADMIN_PASSWORD
-        value: your_secure_password_here
+        sync: false
       - key: SESSION_SECRET
-        value: your_session_secret_here
-    buildFilter:
-      paths:
-        - package.json
-        - package-lock.json
-        - server.js
-        - public/**
-        - database.sqlite
+        sync: false
