@@ -45,9 +45,6 @@ CREATE TABLE IF NOT EXISTS orders(
  id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,service TEXT NOT NULL DEFAULT '',quantity TEXT NOT NULL DEFAULT '',
  contact TEXT NOT NULL,message TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'new',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS announcements(
- id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, expires_at TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
 `);
 
 const defaults={
@@ -76,8 +73,7 @@ function clean(v,max=2000){return String(v??'').trim().slice(0,max);}
 app.get('/api/public',(req,res)=>{
  const services=db.prepare('SELECT id,category,name,description,unit,price,icon,image,active,sort FROM services WHERE active=1 AND name<>\'\' ORDER BY category,sort,id').all();
  const reviews=db.prepare('SELECT id,name,rating,comment,created_at FROM reviews WHERE approved=1 ORDER BY id DESC LIMIT 20').all();
- const announcements=db.prepare('SELECT id,text,expires_at,active,created_at FROM announcements WHERE active=1 AND expires_at>datetime("now") ORDER BY id DESC').all();
- res.json({settings:getSettings(),services,reviews,announcements});
+ res.json({settings:getSettings(),services,reviews});
 });
 
 app.post('/api/orders',(req,res)=>{
@@ -104,7 +100,7 @@ app.post('/api/login',(req,res)=>{
 app.post('/api/logout',admin,(req,res)=>req.session.destroy(()=>res.json({ok:true})));
 
 app.get('/api/admin',admin,(req,res)=>{
- res.json({settings:getSettings(),services:db.prepare('SELECT * FROM services ORDER BY category,sort,id').all(),reviews:db.prepare('SELECT * FROM reviews ORDER BY id DESC').all(),orders:db.prepare('SELECT * FROM orders ORDER BY id DESC').all(),announcements:db.prepare('SELECT * FROM announcements ORDER BY id DESC').all()});
+ res.json({settings:getSettings(),services:db.prepare('SELECT * FROM services ORDER BY category,sort,id').all(),reviews:db.prepare('SELECT * FROM reviews ORDER BY id DESC').all(),orders:db.prepare('SELECT * FROM orders ORDER BY id DESC').all()});
 });
 
 app.put('/api/settings',admin,(req,res)=>{
@@ -132,10 +128,6 @@ app.put('/api/reviews/:id',admin,(req,res)=>{db.prepare('UPDATE reviews SET appr
 app.delete('/api/reviews/:id',admin,(req,res)=>{db.prepare('DELETE FROM reviews WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
 app.put('/api/orders/:id',admin,(req,res)=>{const allowed=['new','processing','done','cancelled'];const s=allowed.includes(req.body.status)?req.body.status:'new';db.prepare('UPDATE orders SET status=? WHERE id=?').run(s,Number(req.params.id));res.json({ok:true})});
 app.delete('/api/orders/:id',admin,(req,res)=>{db.prepare('DELETE FROM orders WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
-
-app.post('/api/announcements',admin,(req,res)=>{const text=clean(req.body.text,500);if(!text)return res.status(400).json({error:'متن اعلان الزامی است.'});let expires=String(req.body.expires_at||'').trim();const d=new Date(expires);if(!expires||Number.isNaN(d.getTime()))return res.status(400).json({error:'زمان پایان اعلان نامعتبر است.'});db.prepare('INSERT INTO announcements(text,expires_at,active) VALUES(?,?,?)').run(text,d.toISOString(),req.body.active===false?0:1);res.json({ok:true})});
-app.put('/api/announcements/:id',admin,(req,res)=>{const id=Number(req.params.id),text=clean(req.body.text,500),d=new Date(String(req.body.expires_at||''));if(!text||Number.isNaN(d.getTime()))return res.status(400).json({error:'اطلاعات اعلان نامعتبر است.'});db.prepare('UPDATE announcements SET text=?,expires_at=?,active=? WHERE id=?').run(text,d.toISOString(),req.body.active?1:0,id);res.json({ok:true})});
-app.delete('/api/announcements/:id',admin,(req,res)=>{db.prepare('DELETE FROM announcements WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
 
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
