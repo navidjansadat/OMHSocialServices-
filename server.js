@@ -3,7 +3,9 @@ const express=require('express');const session=require('express-session');const 
 const app=express(),PORT=process.env.PORT||3000;
 const db=new sqlite3.Database('./database.sqlite');
 app.use(cors());app.use(express.json());app.use(express.urlencoded({extended:true}));app.use(express.static(path.join(__dirname,'public')));
-app.use(session({secret:process.env.SESSION_SECRET||'change-this-secret',resave:false,saveUninitialized:false,cookie:{secure:false,httpOnly:true,maxAge:86400000}}));
+const sessionSecret=process.env.SESSION_SECRET||'change-this-secret-please-set-in-render';
+app.set('trust proxy',1);
+app.use(session({secret:sessionSecret,resave:false,saveUninitialized:false,cookie:{secure:false,httpOnly:true,sameSite:'lax',maxAge:86400000}}));
 function requireAdmin(req,res,next){if(req.session?.isAdmin)return next();res.status(401).json({error:'Unauthorized'});}
 function run(sql,p=[]){return new Promise((resolve,reject)=>db.run(sql,p,function(e){e?reject(e):resolve(this)}))}function all(sql,p=[]){return new Promise((r,j)=>db.all(sql,p,(e,x)=>e?j(e):r(x)))}function get(sql,p=[]){return new Promise((r,j)=>db.get(sql,p,(e,x)=>e?j(e):r(x)))}
 async function init(){
@@ -20,7 +22,7 @@ let cats=await all('SELECT * FROM categories');if(!cats.length){for(const [i,n] 
 const legacy=await all("SELECT * FROM services WHERE subcategory_id IS NULL AND category IS NOT NULL AND TRIM(category)<>''");
 for(const v of legacy){let c=await get('SELECT * FROM categories WHERE lower(name)=lower(?) LIMIT 1',[v.category]);if(!c){let r=await run('INSERT INTO categories(name,status) VALUES(?,?)',[v.category,'active']);c=await get('SELECT * FROM categories WHERE id=?',[r.lastID]);}let sc=await get('SELECT * FROM subcategories WHERE category_id=? ORDER BY id LIMIT 1',[c.id]);if(!sc){let r=await run('INSERT INTO subcategories(category_id,name,status) VALUES(?,?,?)',[c.id,'خدمات عمومی','active']);sc=await get('SELECT * FROM subcategories WHERE id=?',[r.lastID]);}await run('UPDATE services SET category_id=?,subcategory_id=? WHERE id=?',[c.id,sc.id,v.id]);}
 }
-app.post('/api/admin/login',async(req,res)=>{if(req.body.password===(process.env.ADMIN_PASSWORD||'admin123')){req.session.isAdmin=true;return res.json({success:true})}res.status(401).json({error:'Invalid password'})});
+app.post('/api/admin/login',async(req,res)=>{try{const password=String(req.body?.password||'');const adminPassword=String(process.env.ADMIN_PASSWORD||'admin123');if(!password)return res.status(400).json({error:'Password required'});if(password!==adminPassword)return res.status(401).json({error:'Invalid password'});req.session.isAdmin=true;await new Promise((resolve,reject)=>req.session.save(err=>err?reject(err):resolve()));return res.json({success:true});}catch(e){console.error('Admin login error:',e);return res.status(500).json({error:'Login server error'});}});
 app.post('/api/admin/logout',(req,res)=>req.session.destroy(()=>res.json({success:true})));app.get('/api/admin/check',(req,res)=>res.json({isAdmin:!!req.session?.isAdmin}));
 app.get('/api/catalog',async(req,res)=>{try{const cats=await all(`SELECT * FROM categories WHERE status='active' ORDER BY display_order,id`);const subs=await all(`SELECT * FROM subcategories WHERE status='active' ORDER BY display_order,id`);const sv=await all(`SELECT * FROM services WHERE status='active' ORDER BY display_order,id`);res.json(cats.map(c=>({...c,subcategories:subs.filter(s=>s.category_id===c.id).map(s=>({...s,services:sv.filter(v=>v.subcategory_id===s.id)}))})))}catch(e){res.status(500).json({error:'Database error'})}});
 app.get('/api/categories',async(req,res)=>res.json(await all('SELECT * FROM categories WHERE status="active" ORDER BY display_order,id')));app.get('/api/categories/all',requireAdmin,async(req,res)=>res.json(await all('SELECT * FROM categories ORDER BY display_order,id')));
