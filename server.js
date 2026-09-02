@@ -1,134 +1,603 @@
-'use strict';
-const express=require('express');
-const path=require('path');
-const fs=require('fs');
-const session=require('express-session');
-const Database=require('better-sqlite3');
-const helmet=require('helmet');
-const rateLimit=require('express-rate-limit');
+require('dotenv').config();
+const express = require('express');
+const session = require('express-session');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const cors = require('cors');
 
-const app=express();
-const PORT=process.env.PORT||3000;
-const dataDir=path.join(__dirname,'data');
-fs.mkdirSync(dataDir,{recursive:true});
-const db=new Database(path.join(dataDir,'omh.db'));
-db.pragma('journal_mode=WAL');
-db.pragma('foreign_keys=ON');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy',1);
-app.disable('x-powered-by');
-app.use(helmet({contentSecurityPolicy:false}));
-app.use(express.json({limit:'1mb'}));
-app.use(express.urlencoded({extended:true,limit:'1mb'}));
-app.use(rateLimit({windowMs:15*60*1000,max:300,standardHeaders:true,legacyHeaders:false}));
+// Database setup
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+  if (err) {
+    console.error('Database connection error:', err);
+  } else {
+    console.log('Connected to SQLite database');
+    initializeDatabase();
+  }
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 app.use(session({
-  secret:process.env.SESSION_SECRET||'dev-only-change-this-secret',
-  resave:false,saveUninitialized:false,
-  cookie:{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:1000*60*60*12}
+  secret: process.env.SESSION_SECRET || 'omh_secret_key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false }
 }));
 
-app.use(express.static(path.join(__dirname,'public'),{extensions:['html']}));
+// Initialize database tables
+function initializeDatabase() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      price TEXT,
+      unit TEXT,
+      image_url TEXT,
+      icon_url TEXT,
+      status TEXT DEFAULT 'active',
+      display_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS services(
- id INTEGER PRIMARY KEY AUTOINCREMENT,
- category TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
- unit TEXT NOT NULL DEFAULT 'AFN', price TEXT NOT NULL DEFAULT '', icon TEXT NOT NULL DEFAULT '✨',
- image TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, sort INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS reviews(
- id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,rating INTEGER NOT NULL DEFAULT 5,
- comment TEXT NOT NULL,approved INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS orders(
- id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,service TEXT NOT NULL DEFAULT '',quantity TEXT NOT NULL DEFAULT '',
- contact TEXT NOT NULL,message TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'new',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-`);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon_url TEXT,
+      description TEXT,
+      status TEXT DEFAULT 'active',
+      display_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-const defaults={
- brand:'OMH Social Services',tagline:'مرجع خدمات نوین دیجیتال',
- description:'بهترین و سریع‌ترین خدمات دیجیتال با تمرکز بر کیفیت، اعتبار و امنیت.',
- heroTitle:'حضور دیجیتال خود را به سطح بالاتری ببرید',
- heroText:'خدمات شبکه‌های اجتماعی، شماره‌های مجازی، اکانت‌های قدیمی و طراحی دیجیتال؛ همه در یک مرجع.',
- aboutTitle:'چرا OMH Social Services؟',
- aboutText:'کیفیت، اعتبار، سرعت و رضایت مشتری اولویت اصلی ماست. خدمات و اطلاعات سایت از پنل مدیریت کاملاً قابل تغییر است.',
- whatsapp:'93748070273',
- whatsappChannel:'https://whatsapp.com/channel/0029VbC27wl9mrGcV1D6aa3O',
- whatsappGroup:'https://chat.whatsapp.com/LhwXxaXGEy5F4pq0GdqV5s?s=cl&p=a&ilr=0',
- telegramChannel:'https://t.me/OMHSocialServices',telegram:'@omhsocial',
- email:'omhsocialservices@gmail.com',payment:'کریدیت و مومو'
-};
-for(const [k,v] of Object.entries(defaults)) db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run(k,v);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      start_date DATETIME,
+      end_date DATETIME,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-const starterCats=['Facebook Service','Instagram Service','WhatsApp Service','Telegram Service','TikTok Service','Virtual Numbers','Accounts','Digital & Design Services'];
-const catInsert=db.prepare('INSERT INTO services(category,name,description,unit,price,icon,active,sort) VALUES(?,?,?,?,?,?,?,?)');
-for(const c of starterCats){if(!db.prepare('SELECT 1 FROM services WHERE category=? LIMIT 1').get(c))catInsert.run(c,'','','AFN','','✨',1,0);}
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_name TEXT NOT NULL,
+      content TEXT NOT NULL,
+      avatar TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-function getSettings(){return Object.fromEntries(db.prepare('SELECT key,value FROM settings').all().map(r=>[r.key,r.value]));}
-function admin(req,res,next){if(req.session.admin===true)return next();return res.status(401).json({error:'Unauthorized'});}
-function clean(v,max=2000){return String(v??'').trim().slice(0,max);}
+  db.run(`
+    CREATE TABLE IF NOT EXISTS contact_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      whatsapp_url TEXT,
+      telegram_url TEXT,
+      telegram_channel TEXT,
+      whatsapp_channel TEXT,
+      brand_name TEXT DEFAULT 'OMH Social Services',
+      brand_subtitle TEXT DEFAULT 'مرجع خدمات نوین دیجیتال',
+      logo_url TEXT DEFAULT '/images/logo.png',
+      hero_title TEXT,
+      hero_description TEXT,
+      about_text TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-app.get('/api/public',(req,res)=>{
- const services=db.prepare('SELECT id,category,name,description,unit,price,icon,image,active,sort FROM services WHERE active=1 AND name<>\'\' ORDER BY category,sort,id').all();
- const reviews=db.prepare('SELECT id,name,rating,comment,created_at FROM reviews WHERE approved=1 ORDER BY id DESC LIMIT 20').all();
- res.json({settings:getSettings(),services,reviews});
+  // Insert default contact settings if empty
+  db.get("SELECT COUNT(*) as count FROM contact_settings", (err, row) => {
+    if (err) {
+      console.error('Error checking contact settings:', err);
+      return;
+    }
+    if (row.count === 0) {
+      db.run(`
+        INSERT INTO contact_settings (
+          whatsapp_url,
+          telegram_url,
+          telegram_channel,
+          whatsapp_channel,
+          hero_title,
+          hero_description
+        ) VALUES (
+          'https://wa.me/1234567890',
+          'https://t.me/omhsocial',
+          'https://t.me/OMHSocialServices',
+          'https://whatsapp.com/channel/0029VbC27wl9mrGcV1D6aa3O',
+          'حضور دیجیتال خود را به سطح بالاتری ببرید',
+          'خدمات شبکه‌های اجتماعی، طراحی وب‌سایت، اپلیکیشن، طراحی تبلیغاتی و سایر خدمات دیجیتال.'
+        )
+      `);
+    }
+  });
+
+  // Insert default categories if empty
+  db.get("SELECT COUNT(*) as count FROM categories", (err, row) => {
+    if (err) {
+      console.error('Error checking categories:', err);
+      return;
+    }
+    if (row.count === 0) {
+      const categories = [
+        'Facebook', 'Instagram', 'WhatsApp', 'Telegram', 'TikTok', 'Web Design', 'App Development', 'Graphic Design', 'Video Production'
+      ];
+      categories.forEach((name, index) => {
+        db.run(
+          "INSERT INTO categories (name, display_order) VALUES (?, ?)",
+          [name, index]
+        );
+      });
+    }
+  });
+}
+
+// Admin authentication middleware
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+}
+
+// ==================== API ROUTES ====================
+
+// Admin login
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  
+  if (password === adminPassword) {
+    req.session.isAdmin = true;
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ error: 'Invalid password' });
+  }
 });
 
-app.post('/api/orders',(req,res)=>{
- const name=clean(req.body.name,120),contact=clean(req.body.contact,160);
- if(!name||!contact)return res.status(400).json({error:'نام و راه ارتباطی الزامی است.'});
- const r=db.prepare('INSERT INTO orders(name,service,quantity,contact,message) VALUES(?,?,?,?,?)').run(name,clean(req.body.service,200),clean(req.body.quantity,100),contact,clean(req.body.message,2000));
- res.json({ok:true,id:r.lastInsertRowid});
+app.post('/api/admin/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
 });
 
-app.post('/api/reviews',(req,res)=>{
- const name=clean(req.body.name,100),comment=clean(req.body.comment,1000),rating=Math.max(1,Math.min(5,Number(req.body.rating)||5));
- if(!name||!comment)return res.status(400).json({error:'نام و نظر الزامی است.'});
- db.prepare('INSERT INTO reviews(name,rating,comment,approved) VALUES(?,?,?,0)').run(name,rating,comment);
- res.json({ok:true,message:'نظر شما ثبت شد و پس از بررسی نمایش داده می‌شود.'});
+app.get('/api/admin/check', (req, res) => {
+  res.json({ isAdmin: !!req.session.isAdmin });
 });
 
-app.post('/api/login',(req,res)=>{
- const password=String(req.body.password||'');
- const expected=process.env.ADMIN_PASSWORD;
- if(!expected)return res.status(500).json({error:'ADMIN_PASSWORD در Render تنظیم نشده است.'});
- if(password!==expected)return res.status(401).json({error:'رمز نادرست است.'});
- req.session.admin=true;res.json({ok:true});
-});
-app.post('/api/logout',admin,(req,res)=>req.session.destroy(()=>res.json({ok:true})));
+// ==================== SERVICES API ====================
 
-app.get('/api/admin',admin,(req,res)=>{
- res.json({settings:getSettings(),services:db.prepare('SELECT * FROM services ORDER BY category,sort,id').all(),reviews:db.prepare('SELECT * FROM reviews ORDER BY id DESC').all(),orders:db.prepare('SELECT * FROM orders ORDER BY id DESC').all()});
+app.get('/api/services', (req, res) => {
+  const { category } = req.query;
+  let query = "SELECT * FROM services WHERE status = 'active'";
+  const params = [];
+  
+  if (category) {
+    query += " AND category = ?";
+    params.push(category);
+  }
+  
+  query += " ORDER BY display_order ASC, created_at DESC";
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Error fetching services:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(rows);
+  });
 });
 
-app.put('/api/settings',admin,(req,res)=>{
- const q=db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
- const tx=db.transaction(obj=>{for(const [k,v] of Object.entries(obj||{})){if(/^[a-zA-Z][a-zA-Z0-9_]*$/.test(k))q.run(k,clean(v,5000));}});
- tx(req.body);res.json({ok:true});
+app.get('/api/services/all', requireAdmin, (req, res) => {
+  db.all("SELECT * FROM services ORDER BY category, display_order", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(rows);
+  });
 });
 
-app.post('/api/services',admin,(req,res)=>{
- const category=clean(req.body.category,120);if(!category)return res.status(400).json({error:'نام بخش الزامی است.'});
- const r=db.prepare('INSERT INTO services(category,name,description,unit,price,icon,image,active,sort) VALUES(?,?,?,?,?,?,?,?,?)').run(category,clean(req.body.name,160),clean(req.body.description,1000),clean(req.body.unit,30)||'AFN',clean(req.body.price,100),clean(req.body.icon,30)||'✨',clean(req.body.image,1000),req.body.active===false?0:1,Number(req.body.sort)||0);
- res.json({ok:true,id:r.lastInsertRowid});
+app.post('/api/services', requireAdmin, (req, res) => {
+  const { category, title, description, price, unit, image_url, icon_url, status, display_order } = req.body;
+  
+  db.run(
+    `INSERT INTO services (category, title, description, price, unit, image_url, icon_url, status, display_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [category, title, description, price, unit, image_url, icon_url, status || 'active', display_order || 0],
+    function(err) {
+      if (err) {
+        console.error('Error creating service:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ id: this.lastID, success: true });
+    }
+  );
 });
-app.put('/api/services/:id',admin,(req,res)=>{
- const id=Number(req.params.id);if(!Number.isInteger(id))return res.status(400).json({error:'شناسه نامعتبر است.'});
- db.prepare('UPDATE services SET category=?,name=?,description=?,unit=?,price=?,icon=?,image=?,active=?,sort=? WHERE id=?').run(
-  clean(req.body.category,120),clean(req.body.name,160),clean(req.body.description,1000),clean(req.body.unit,30)||'AFN',clean(req.body.price,100),clean(req.body.icon,30)||'✨',clean(req.body.image,1000),req.body.active?1:0,Number(req.body.sort)||0,id);
- res.json({ok:true});
+
+app.put('/api/services/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { category, title, description, price, unit, image_url, icon_url, status, display_order } = req.body;
+  
+  db.run(
+    `UPDATE services SET 
+      category = ?, title = ?, description = ?, price = ?, unit = ?, 
+      image_url = ?, icon_url = ?, status = ?, display_order = ?,
+      updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [category, title, description, price, unit, image_url, icon_url, status, display_order, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating service:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
 });
-app.delete('/api/services/:id',admin,(req,res)=>{db.prepare('DELETE FROM services WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
-app.post('/api/categories',admin,(req,res)=>{const c=clean(req.body.category,120);if(!c)return res.status(400).json({error:'نام بخش الزامی است.'});catInsert.run(c,'','','AFN','','✨',1,0);res.json({ok:true});});
-app.delete('/api/categories/:category',admin,(req,res)=>{db.prepare('DELETE FROM services WHERE category=?').run(clean(req.params.category,120));res.json({ok:true})});
 
-app.put('/api/reviews/:id',admin,(req,res)=>{db.prepare('UPDATE reviews SET approved=? WHERE id=?').run(req.body.approved?1:0,Number(req.params.id));res.json({ok:true})});
-app.delete('/api/reviews/:id',admin,(req,res)=>{db.prepare('DELETE FROM reviews WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
-app.put('/api/orders/:id',admin,(req,res)=>{const allowed=['new','processing','done','cancelled'];const s=allowed.includes(req.body.status)?req.body.status:'new';db.prepare('UPDATE orders SET status=? WHERE id=?').run(s,Number(req.params.id));res.json({ok:true})});
-app.delete('/api/orders/:id',admin,(req,res)=>{db.prepare('DELETE FROM orders WHERE id=?').run(Number(req.params.id));res.json({ok:true})});
+app.delete('/api/services/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM services WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error('Error deleting service:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json({ success: true });
+  });
+});
 
-app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
-app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
-app.listen(PORT,()=>console.log(`OMH Social Services running on ${PORT}`));
+// ==================== CATEGORIES API ====================
+
+app.get('/api/categories', (req, res) => {
+  db.all(
+    "SELECT * FROM categories WHERE status = 'active' ORDER BY display_order",
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.get('/api/categories/all', requireAdmin, (req, res) => {
+  db.all("SELECT * FROM categories ORDER BY display_order", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/categories', requireAdmin, (req, res) => {
+  const { name, icon_url, description, status, display_order } = req.body;
+  
+  db.run(
+    `INSERT INTO categories (name, icon_url, description, status, display_order)
+     VALUES (?, ?, ?, ?, ?)`,
+    [name, icon_url, description, status || 'active', display_order || 0],
+    function(err) {
+      if (err) {
+        console.error('Error creating category:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ id: this.lastID, success: true });
+    }
+  );
+});
+
+app.put('/api/categories/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { name, icon_url, description, status, display_order } = req.body;
+  
+  db.run(
+    `UPDATE categories SET 
+      name = ?, icon_url = ?, description = ?, status = ?, display_order = ?
+     WHERE id = ?`,
+    [name, icon_url, description, status, display_order, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating category:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete('/api/categories/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM categories WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error('Error deleting category:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json({ success: true });
+  });
+});
+
+// ==================== ANNOUNCEMENTS API ====================
+
+app.get('/api/announcements', (req, res) => {
+  const now = new Date().toISOString();
+  
+  db.all(
+    `SELECT * FROM announcements 
+     WHERE status = 'active' 
+     AND (end_date IS NULL OR end_date > ?)
+     ORDER BY created_at DESC`,
+    [now],
+    (err, rows) => {
+      if (err) {
+        console.error('Error fetching announcements:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.get('/api/announcements/all', requireAdmin, (req, res) => {
+  db.all("SELECT * FROM announcements ORDER BY created_at DESC", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/announcements', requireAdmin, (req, res) => {
+  const { title, content, start_date, end_date, status } = req.body;
+  
+  db.run(
+    `INSERT INTO announcements (title, content, start_date, end_date, status)
+     VALUES (?, ?, ?, ?, ?)`,
+    [title, content, start_date, end_date, status || 'active'],
+    function(err) {
+      if (err) {
+        console.error('Error creating announcement:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ id: this.lastID, success: true });
+    }
+  );
+});
+
+app.put('/api/announcements/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { title, content, start_date, end_date, status } = req.body;
+  
+  db.run(
+    `UPDATE announcements SET 
+      title = ?, content = ?, start_date = ?, end_date = ?, status = ?,
+      updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [title, content, start_date, end_date, status, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating announcement:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete('/api/announcements/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM announcements WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error('Error deleting announcement:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json({ success: true });
+  });
+});
+
+// ==================== REVIEWS API ====================
+
+app.get('/api/reviews', (req, res) => {
+  db.all(
+    "SELECT * FROM reviews WHERE status = 'approved' ORDER BY created_at DESC",
+    (err, rows) => {
+      if (err) {
+        console.error('Error fetching reviews:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.get('/api/reviews/all', requireAdmin, (req, res) => {
+  db.all("SELECT * FROM reviews ORDER BY created_at DESC", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/api/reviews', (req, res) => {
+  const { customer_name, content, avatar } = req.body;
+  
+  db.run(
+    `INSERT INTO reviews (customer_name, content, avatar, status)
+     VALUES (?, ?, ?, 'pending')`,
+    [customer_name, content, avatar || null],
+    function(err) {
+      if (err) {
+        console.error('Error creating review:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ id: this.lastID, success: true });
+    }
+  );
+});
+
+app.put('/api/reviews/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { customer_name, content, avatar, status } = req.body;
+  
+  db.run(
+    `UPDATE reviews SET 
+      customer_name = ?, content = ?, avatar = ?, status = ?,
+      updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [customer_name, content, avatar, status, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating review:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete('/api/reviews/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM reviews WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error('Error deleting review:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json({ success: true });
+  });
+});
+
+// ==================== CONTACT SETTINGS API ====================
+
+app.get('/api/contact-settings', (req, res) => {
+  db.get("SELECT * FROM contact_settings ORDER BY id DESC LIMIT 1", (err, row) => {
+    if (err) {
+      console.error('Error fetching contact settings:', err);
+      res.status(500).json({ error: 'Database error' });
+      return;
+    }
+    res.json(row || {});
+  });
+});
+
+app.put('/api/contact-settings', requireAdmin, (req, res) => {
+  const {
+    whatsapp_url, telegram_url, telegram_channel, whatsapp_channel,
+    brand_name, brand_subtitle, logo_url, hero_title, hero_description, about_text
+  } = req.body;
+  
+  db.run(
+    `UPDATE contact_settings SET 
+      whatsapp_url = ?, telegram_url = ?, telegram_channel = ?, whatsapp_channel = ?,
+      brand_name = ?, brand_subtitle = ?, logo_url = ?, hero_title = ?, hero_description = ?, about_text = ?,
+      updated_at = CURRENT_TIMESTAMP
+     WHERE id = (SELECT id FROM contact_settings ORDER BY id DESC LIMIT 1)`,
+    [whatsapp_url, telegram_url, telegram_channel, whatsapp_channel,
+     brand_name, brand_subtitle, logo_url, hero_title, hero_description, about_text],
+    function(err) {
+      if (err) {
+        console.error('Error updating contact settings:', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+// ==================== DASHBOARD STATS ====================
+
+app.get('/api/dashboard/stats', requireAdmin, (req, res) => {
+  const stats = {};
+  
+  db.get("SELECT COUNT(*) as count FROM services", (err, row) => {
+    if (err) {
+      console.error('Error counting services:', err);
+      return;
+    }
+    stats.services = row.count;
+    
+    db.get("SELECT COUNT(*) as count FROM reviews", (err, row) => {
+      if (err) {
+        console.error('Error counting reviews:', err);
+        return;
+      }
+      stats.reviews = row.count;
+      
+      db.get("SELECT COUNT(*) as count FROM announcements WHERE status = 'active'", (err, row) => {
+        if (err) {
+          console.error('Error counting announcements:', err);
+          return;
+        }
+        stats.announcements = row.count;
+        
+        db.get("SELECT COUNT(*) as count FROM reviews WHERE status = 'pending'", (err, row) => {
+          if (err) {
+            console.error('Error counting pending reviews:', err);
+            return;
+          }
+          stats.pendingReviews = row.count;
+          res.json(stats);
+        });
+      });
+    });
+  });
+});
+
+// Serve admin panel
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Serve main page
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 OMH Social Services running on port ${PORT}`);
+  console.log(`📱 Visit: http://localhost:${PORT}`);
+  console.log(`🔐 Admin Panel: http://localhost:${PORT}/admin`);
+});
