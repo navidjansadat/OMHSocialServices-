@@ -1,29 +1,29 @@
-# OMH Social Services — Render Ready
+# OMH Social Services — Final
 
-نسخه نهایی سایت OMH Social Services با پنل مدیریت.
+نسخه نهایی آماده Deploy روی Render.
 
-## Deploy روی Render
-1. کل پوشه را در GitHub آپلود کن.
-2. در Render یک Web Service بساز یا Blueprint را از `render.yaml` استفاده کن.
-3. Build Command: `npm install`
-4. Start Command: `npm start`
-5. Environment Variables:
-   - `SESSION_SECRET` یک مقدار طولانی و تصادفی
-   - `ADMIN_PASSWORD` رمز ورود پنل، حداقل ۸ کاراکتر
-6. بعد از Deploy برو به `/admin`.
+## امکانات
+- طراحی روشن، دیجیتالی و Responsive
+- Glassmorphism، گرادیان و انیمیشن‌های نرم
+- اعلان‌های ۲۴ ساعته با زمان پایان و مخفی‌شدن خودکار
+- مدیریت اعلان‌ها از Admin Panel
+- مدیریت کامل بخش‌ها و سرویس‌ها از Admin Panel
+- آیکن واقعی شبکه‌های اجتماعی با Simple Icons
+- URL سفارشی برای آیکن و عکس سرویس‌ها
+- سفارش و انتقال به WhatsApp
+- ارتباط مستقیم Telegram
+- کانال WhatsApp و Telegram
+- نظرات مشتریان بدون نمایش ستاره در سایت
+- مدیریت تایید/حذف نظرات
+- مدیریت سفارش‌ها
 
-## امکانات پنل
-- تغییر نام و شعار سایت
-- تغییر عنوان و متن صفحه اصلی
-- تغییر شماره WhatsApp
-- تغییر لینک کانال و گروپ WhatsApp
-- تغییر Telegram و کانال Telegram
-- تغییر ایمیل و روش پرداخت
-- افزودن/حذف بخش خدمات
-- افزودن/حذف/ویرایش هر سرویس
-- تغییر قیمت، واحد، آیکن، توضیحات و ترتیب سرویس
-- فعال/غیرفعال کردن سرویس
-- مدیریت و تایید نظرات
-- مدیریت وضعیت سفارش‌ها
+## Render Environment Variables
+- `ADMIN_PASSWORD` — رمز ورود پنل مدیریت
+- `SESSION_SECRET` — می‌تواند در Render با Generate Value ساخته شود
+- `NODE_ENV=production`
 
-نکته: اگر روی Render بدون Persistent Disk از SQLite استفاده شود، اطلاعات دیتابیس ممکن است هنگام بعضی redeploy/restartها پایدار نماند. برای داده‌های دائمی، Persistent Disk یا دیتابیس PostgreSQL توصیه می‌شود.
+## Deploy
+Build Command: `npm install`
+Start Command: `npm start`
+
+پنل: `/admin`
