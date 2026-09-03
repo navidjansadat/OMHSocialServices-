@@ -1,28 +1,134 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const $ = (s, p = document) => p.querySelector(s);
-  const $$ = (s, p = document) => [...p.querySelectorAll(s)];
+  "use strict";
+
+  const $ = (selector, parent = document) =>
+    parent.querySelector(selector);
+
+  const $$ = (selector, parent = document) =>
+    [...parent.querySelectorAll(selector)];
 
   let categories = [];
   let subcategories = [];
   let services = [];
   let announcements = [];
   let reviews = [];
-  let editing = null;
 
-  const api = async (url, options = {}) => {
-    const response = await fetch(url, {
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      },
-      ...options
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function showMessage(message, type = "success") {
+    let box = $("#adminMessage");
+
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "adminMessage";
+
+      Object.assign(box.style, {
+        position: "fixed",
+        top: "20px",
+        left: "20px",
+        right: "20px",
+        zIndex: "999999",
+        maxWidth: "520px",
+        margin: "auto",
+        padding: "14px 18px",
+        borderRadius: "14px",
+        textAlign: "center",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#fff",
+        boxShadow: "0 15px 45px rgba(0,0,0,.35)",
+        backdropFilter: "blur(15px)"
+      });
+
+      document.body.appendChild(box);
+    }
+
+    box.textContent = message;
+
+    box.style.background =
+      type === "error"
+        ? "rgba(185,45,45,.95)"
+        : "rgba(18,150,110,.95)";
+
+    clearTimeout(box._timer);
+
+    box._timer = setTimeout(() => {
+      if (box && box.parentNode) {
+        box.remove();
+      }
+    }, 3500);
+  }
+
+  function getFormData(form) {
+    const data = {};
+
+    new FormData(form).forEach((value, key) => {
+      data[key] = value;
     });
 
-    let data = {};
+    return data;
+  }
+
+  /* =========================================================
+     API
+  ========================================================= */
+
+  async function api(url, options = {}) {
+    const config = {
+      credentials: "same-origin",
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...(options.body
+          ? { "Content-Type": "application/json" }
+          : {}),
+        ...(options.headers || {})
+      }
+    };
+
+    let response;
+
     try {
-      data = await response.json();
-    } catch (_) {}
+      response = await fetch(url, config);
+    } catch (error) {
+      throw new Error(
+        "ارتباط با سرور برقرار نشد. اینترنت یا سرور را بررسی کنید."
+      );
+    }
+
+    let data = {};
+
+    const contentType =
+      response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        data = await response.json();
+      } catch (_) {
+        data = {};
+      }
+    } else {
+      try {
+        const text = await response.text();
+
+        if (text) {
+          data = {
+            message: text
+          };
+        }
+      } catch (_) {}
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -33,106 +139,160 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     return data;
-  };
-
-  const showMessage = (message, type = "success") => {
-    let box = $("#adminMessage");
-
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "adminMessage";
-      box.style.cssText = `
-        position:fixed;
-        top:20px;
-        left:20px;
-        right:20px;
-        z-index:99999;
-        max-width:520px;
-        margin:auto;
-        padding:14px 18px;
-        border-radius:14px;
-        text-align:center;
-        font-size:13px;
-        font-weight:700;
-        backdrop-filter:blur(15px);
-      `;
-      document.body.appendChild(box);
-    }
-
-    box.textContent = message;
-    box.style.background =
-      type === "error"
-        ? "rgba(180,40,40,.92)"
-        : "rgba(20,145,105,.92)";
-    box.style.color = "#fff";
-
-    clearTimeout(box._timer);
-    box._timer = setTimeout(() => {
-      box.remove();
-    }, 3500);
-  };
-
-  const formData = form => {
-    const data = {};
-
-    new FormData(form).forEach((value, key) => {
-      data[key] = value;
-    });
-
-    return data;
-  };
-
-  async function checkLogin() {
-    try {
-      const data = await api("/api/admin/check");
-
-      if (data.isAdmin) {
-        showPanel();
-        await loadAll();
-      } else {
-        showLogin();
-      }
-    } catch (error) {
-      showLogin();
-    }
   }
+
+  /* =========================================================
+     LOGIN / LOGOUT
+  ========================================================= */
 
   function showLogin() {
     const login = $("#loginScreen");
     const panel = $("#adminPanel");
 
-    if (login) login.style.display = "";
-    if (panel) panel.style.display = "none";
+    if (login) {
+      login.hidden = false;
+      login.style.display = "";
+      login.classList.remove("hidden");
+      login.classList.add("active");
+    }
+
+    if (panel) {
+      panel.hidden = true;
+      panel.style.display = "none";
+      panel.classList.remove("active");
+      panel.classList.add("hidden");
+    }
   }
 
   function showPanel() {
     const login = $("#loginScreen");
     const panel = $("#adminPanel");
 
-    if (login) login.style.display = "none";
-    if (panel) panel.style.display = "";
+    /*
+      مهم:
+      از hidden + style + class همزمان استفاده می‌کنیم
+      تا CSS قبلی نتواند پنل را مخفی نگه دارد.
+    */
+
+    if (login) {
+      login.hidden = true;
+      login.style.display = "none";
+      login.classList.remove("active");
+      login.classList.add("hidden");
+    }
+
+    if (panel) {
+      panel.hidden = false;
+      panel.style.display = "block";
+      panel.classList.remove("hidden");
+      panel.classList.add("active");
+
+      /*
+        اگر خود پنل داخل یک wrapper مخفی باشد،
+        والدهای مستقیم را هم بررسی می‌کنیم.
+      */
+      let parent = panel.parentElement;
+
+      for (let i = 0; i < 3 && parent; i++) {
+        if (
+          parent.id === "adminApp" ||
+          parent.id === "adminContainer" ||
+          parent.classList.contains("admin-wrapper")
+        ) {
+          parent.hidden = false;
+          parent.style.display = "";
+          parent.classList.remove("hidden");
+        }
+
+        parent = parent.parentElement;
+      }
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
+
+  async function checkLogin() {
+    try {
+      const data = await api("/api/admin/check");
+
+      if (
+        data &&
+        (
+          data.isAdmin === true ||
+          data.isAuthenticated === true ||
+          data.authenticated === true ||
+          data.loggedIn === true
+        )
+      ) {
+        showPanel();
+
+        /*
+          اگر API اطلاعات خطا بدهد، خود ورود نباید
+          دوباره به صفحه لاگین برگردد.
+        */
+        await loadAll();
+
+        return true;
+      }
+
+      showLogin();
+      return false;
+
+    } catch (error) {
+      showLogin();
+      return false;
+    }
   }
 
   async function login() {
     const form = $("#loginForm");
 
-    if (!form) return;
+    if (!form) {
+      showMessage(
+        "فرم ورود پیدا نشد.",
+        "error"
+      );
+      return;
+    }
 
     const passwordInput =
       form.querySelector(
         'input[name="password"], input[type="password"]'
       );
 
+    if (!passwordInput) {
+      showMessage(
+        "فیلد رمز عبور پیدا نشد.",
+        "error"
+      );
+      return;
+    }
+
     const password =
-      passwordInput?.value?.trim() || "";
+      String(passwordInput.value || "").trim();
 
     if (!password) {
-      showMessage("رمز مدیریت را وارد کنید.", "error");
+      showMessage(
+        "رمز مدیریت را وارد کنید.",
+        "error"
+      );
+
+      passwordInput.focus();
       return;
     }
 
     const button =
-      form.querySelector("button[type='submit']");
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    const originalText =
+      button
+        ? button.textContent
+        : "ورود";
 
     if (button) {
       button.disabled = true;
@@ -140,77 +300,281 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      await api("/api/admin/login", {
-        method: "POST",
-        body: JSON.stringify({ password })
-      });
+      const result = await api(
+        "/api/admin/login",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            password
+          })
+        }
+      );
+
+      /*
+        اگر سرور Login موفق داده باشد،
+        مستقیماً پنل را باز می‌کنیم.
+      */
+
+      if (
+        result &&
+        (
+          result.success === false ||
+          result.ok === false ||
+          result.isAdmin === false
+        )
+      ) {
+        throw new Error(
+          result.error ||
+          result.message ||
+          "رمز مدیریت نادرست است."
+        );
+      }
 
       showMessage("ورود موفق بود.");
+
+      /*
+        اول پنل را نمایش بده
+        سپس اطلاعات را بارگذاری کن.
+      */
       showPanel();
-      await loadAll();
+
+      /*
+        کمی صبر برای ثبت Cookie Session
+      */
+      await new Promise(resolve =>
+        setTimeout(resolve, 100)
+      );
+
+      try {
+        await loadAll();
+      } catch (loadError) {
+        console.error(
+          "Admin data loading error:",
+          loadError
+        );
+
+        /*
+          ورود موفق بوده؛ فقط یکی از APIها مشکل دارد.
+          پنل نباید بسته شود.
+        */
+
+        showMessage(
+          "ورود موفق شد، اما دریافت بعضی اطلاعات با مشکل مواجه شد.",
+          "error"
+        );
+      }
+
     } catch (error) {
-      showMessage(error.message, "error");
+      console.error(
+        "Admin login error:",
+        error
+      );
+
+      showMessage(
+        error.message ||
+        "ورود انجام نشد.",
+        "error"
+      );
+
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent = "ورود";
+        button.textContent = originalText;
       }
     }
   }
 
   async function logout() {
     try {
-      await api("/api/admin/logout", {
-        method: "POST"
-      });
-    } catch (_) {}
+      await api(
+        "/api/admin/logout",
+        {
+          method: "POST"
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "Logout API error:",
+        error
+      );
+    }
 
-    location.reload();
+    showLogin();
+
+    const form = $("#loginForm");
+
+    if (form) {
+      form.reset();
+    }
+
+    showMessage("از پنل خارج شدید.");
   }
 
+  /* =========================================================
+     LOAD DATA
+  ========================================================= */
+
   async function loadCategories() {
-    categories = await api("/api/categories/all");
-    renderCategories();
-    fillCategorySelects();
+    try {
+      const data =
+        await api("/api/categories/all");
+
+      categories =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.categories)
+            ? data.categories
+            : [];
+
+      renderCategories();
+      fillCategorySelects();
+
+    } catch (error) {
+      console.error(
+        "Categories:",
+        error
+      );
+
+      categories = [];
+
+      renderCategories();
+      fillCategorySelects();
+
+      throw error;
+    }
   }
 
   async function loadSubcategories() {
-    subcategories =
-      await api("/api/subcategories/all");
+    try {
+      const data =
+        await api("/api/subcategories/all");
 
-    renderSubcategories();
-    fillCategorySelects();
-    fillSubcategorySelects();
+      subcategories =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.subcategories)
+            ? data.subcategories
+            : [];
+
+      renderSubcategories();
+      fillSubcategorySelects();
+
+    } catch (error) {
+      console.error(
+        "Subcategories:",
+        error
+      );
+
+      subcategories = [];
+
+      renderSubcategories();
+      fillSubcategorySelects();
+
+      throw error;
+    }
   }
 
   async function loadServices() {
-    services =
-      await api("/api/services/all");
+    try {
+      const data =
+        await api("/api/services/all");
 
-    renderServices();
-    fillCategorySelects();
-    fillSubcategorySelects();
+      services =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.services)
+            ? data.services
+            : [];
+
+      renderServices();
+
+    } catch (error) {
+      console.error(
+        "Services:",
+        error
+      );
+
+      services = [];
+
+      renderServices();
+
+      throw error;
+    }
   }
 
   async function loadAnnouncements() {
-    announcements =
-      await api("/api/announcements/all");
+    try {
+      const data =
+        await api("/api/announcements/all");
 
-    renderAnnouncements();
+      announcements =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.announcements)
+            ? data.announcements
+            : [];
+
+      renderAnnouncements();
+
+    } catch (error) {
+      console.error(
+        "Announcements:",
+        error
+      );
+
+      announcements = [];
+
+      renderAnnouncements();
+
+      throw error;
+    }
   }
 
   async function loadReviews() {
-    reviews =
-      await api("/api/reviews/all");
+    try {
+      const data =
+        await api("/api/reviews/all");
 
-    renderReviews();
+      reviews =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.reviews)
+            ? data.reviews
+            : [];
+
+      renderReviews();
+
+    } catch (error) {
+      console.error(
+        "Reviews:",
+        error
+      );
+
+      reviews = [];
+
+      renderReviews();
+
+      throw error;
+    }
   }
 
   async function loadSettings() {
-    const data =
-      await api("/api/contact-settings");
+    try {
+      const data =
+        await api("/api/contact-settings");
 
-    fillSettings(data);
+      fillSettings(
+        data || {}
+      );
+
+    } catch (error) {
+      console.error(
+        "Settings:",
+        error
+      );
+
+      throw error;
+    }
   }
 
   async function loadStats() {
@@ -223,44 +587,60 @@ document.addEventListener("DOMContentLoaded", () => {
           "#categoryCount",
           "#categoriesCount"
         ],
+
         subcategories: [
           "#subcategoryCount",
           "#subcategoriesCount"
         ],
+
         services: [
           "#serviceCount",
           "#servicesCount"
         ],
+
         reviews: [
           "#reviewCount",
           "#reviewsCount"
         ],
+
         announcements: [
           "#announcementCount",
           "#announcementsCount"
         ],
+
         pendingReviews: [
           "#pendingReviewCount"
         ]
       };
 
-      Object.entries(mapping).forEach(
-        ([key, selectors]) => {
+      Object.entries(mapping)
+        .forEach(([key, selectors]) => {
           selectors.forEach(selector => {
             const element = $(selector);
+
             if (element) {
               element.textContent =
-                data[key] ?? 0;
+                data?.[key] ?? 0;
             }
           });
-        }
+        });
+
+    } catch (error) {
+      console.warn(
+        "Stats:",
+        error
       );
-    } catch (_) {}
+    }
   }
 
   async function loadAll() {
-    try {
-      await Promise.all([
+    /*
+      Promise.allSettled باعث می‌شود اگر مثلاً
+      Reviews API خراب باشد، پنل کلاً متوقف نشود.
+    */
+
+    const results =
+      await Promise.allSettled([
         loadCategories(),
         loadSubcategories(),
         loadServices(),
@@ -269,14 +649,31 @@ document.addEventListener("DOMContentLoaded", () => {
         loadSettings(),
         loadStats()
       ]);
-    } catch (error) {
-      showMessage(
-        "خطا در دریافت اطلاعات: " +
-        error.message,
-        "error"
+
+    const failed =
+      results.filter(
+        item => item.status === "rejected"
+      );
+
+    if (failed.length) {
+      console.warn(
+        "Some admin APIs failed:",
+        failed
       );
     }
+
+    /*
+      دوباره Selectها را پر می‌کنیم
+      چون ترتیب APIها ممکن است متفاوت باشد.
+    */
+
+    fillCategorySelects();
+    fillSubcategorySelects();
   }
+
+  /* =========================================================
+     SELECTS
+  ========================================================= */
 
   function fillCategorySelects() {
     const selects = $$(
@@ -284,7 +681,8 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     selects.forEach(select => {
-      const current = select.value;
+      const current =
+        select.value;
 
       select.innerHTML =
         '<option value="">انتخاب دسته‌بندی</option>';
@@ -293,14 +691,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const option =
           document.createElement("option");
 
-        option.value = category.id;
-        option.textContent = category.name;
+        option.value =
+          category.id;
+
+        option.textContent =
+          category.name;
 
         select.appendChild(option);
       });
 
       if (current) {
-        select.value = current;
+        select.value =
+          current;
       }
     });
   }
@@ -311,7 +713,8 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     selects.forEach(select => {
-      const current = select.value;
+      const current =
+        select.value;
 
       select.innerHTML =
         '<option value="">انتخاب زیردسته</option>';
@@ -319,15 +722,17 @@ document.addEventListener("DOMContentLoaded", () => {
       subcategories.forEach(sub => {
         const category =
           categories.find(
-            c =>
-              Number(c.id) ===
+            category =>
+              Number(category.id) ===
               Number(sub.category_id)
           );
 
         const option =
           document.createElement("option");
 
-        option.value = sub.id;
+        option.value =
+          sub.id;
+
         option.textContent =
           category
             ? `${category.name} — ${sub.name}`
@@ -337,10 +742,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (current) {
-        select.value = current;
+        select.value =
+          current;
       }
     });
   }
+
+  /* =========================================================
+     RENDER CATEGORIES
+  ========================================================= */
 
   function renderCategories() {
     const container =
@@ -356,45 +766,69 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML =
-      categories.map(category => `
-        <div class="admin-item">
-          <div class="admin-item-info">
-            ${
-              category.icon_url
-                ? `<img src="${escapeHtml(category.icon_url)}" class="admin-item-icon">`
-                : `<div class="admin-item-icon placeholder-icon">◈</div>`
-            }
+      categories
+        .map(category => `
+          <div class="admin-item">
 
-            <div>
-              <strong>
-                ${escapeHtml(category.name)}
-              </strong>
+            <div class="admin-item-info">
 
-              <small>
-                ${escapeHtml(category.description || "")}
-              </small>
+              ${
+                category.icon_url
+                  ? `
+                    <img
+                      src="${escapeHtml(category.icon_url)}"
+                      class="admin-item-icon"
+                      alt=""
+                    >
+                  `
+                  : `
+                    <div class="admin-item-icon placeholder-icon">
+                      ◈
+                    </div>
+                  `
+              }
+
+              <div>
+                <strong>
+                  ${escapeHtml(category.name)}
+                </strong>
+
+                <small>
+                  ${escapeHtml(
+                    category.description || ""
+                  )}
+                </small>
+              </div>
+
             </div>
-          </div>
 
-          <div class="admin-item-actions">
-            <button
-              type="button"
-              data-edit-category="${category.id}"
-            >
-              ویرایش
-            </button>
+            <div class="admin-item-actions">
 
-            <button
-              type="button"
-              data-delete-category="${category.id}"
-              class="danger"
-            >
-              حذف
-            </button>
+              <button
+                type="button"
+                data-edit-category="${category.id}"
+              >
+                ویرایش
+              </button>
+
+              <button
+                type="button"
+                data-delete-category="${category.id}"
+                class="danger"
+              >
+                حذف
+              </button>
+
+            </div>
+
           </div>
-        </div>
-      `).join("");
+        `)
+        .join("");
   }
+
+  /* =========================================================
+     RENDER SUBCATEGORIES
+  ========================================================= */
 
   function renderSubcategories() {
     const container =
@@ -410,58 +844,80 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML =
-      subcategories.map(sub => {
-        const category =
-          categories.find(
-            c =>
-              Number(c.id) ===
-              Number(sub.category_id)
-          );
+      subcategories
+        .map(sub => {
+          const category =
+            categories.find(
+              c =>
+                Number(c.id) ===
+                Number(sub.category_id)
+            );
 
-        return `
-          <div class="admin-item">
-            <div class="admin-item-info">
-              ${
-                sub.icon_url
-                  ? `<img src="${escapeHtml(sub.icon_url)}" class="admin-item-icon">`
-                  : `<div class="admin-item-icon placeholder-icon">◈</div>`
-              }
+          return `
+            <div class="admin-item">
 
-              <div>
-                <strong>
-                  ${escapeHtml(sub.name)}
-                </strong>
+              <div class="admin-item-info">
 
-                <small>
-                  ${
-                    category
-                      ? escapeHtml(category.name)
-                      : "بدون دسته"
-                  }
-                </small>
+                ${
+                  sub.icon_url
+                    ? `
+                      <img
+                        src="${escapeHtml(sub.icon_url)}"
+                        class="admin-item-icon"
+                        alt=""
+                      >
+                    `
+                    : `
+                      <div class="admin-item-icon placeholder-icon">
+                        ◈
+                      </div>
+                    `
+                }
+
+                <div>
+                  <strong>
+                    ${escapeHtml(sub.name)}
+                  </strong>
+
+                  <small>
+                    ${
+                      category
+                        ? escapeHtml(category.name)
+                        : "بدون دسته"
+                    }
+                  </small>
+                </div>
+
               </div>
-            </div>
 
-            <div class="admin-item-actions">
-              <button
-                type="button"
-                data-edit-subcategory="${sub.id}"
-              >
-                ویرایش
-              </button>
+              <div class="admin-item-actions">
 
-              <button
-                type="button"
-                data-delete-subcategory="${sub.id}"
-                class="danger"
-              >
-                حذف
-              </button>
+                <button
+                  type="button"
+                  data-edit-subcategory="${sub.id}"
+                >
+                  ویرایش
+                </button>
+
+                <button
+                  type="button"
+                  data-delete-subcategory="${sub.id}"
+                  class="danger"
+                >
+                  حذف
+                </button>
+
+              </div>
+
             </div>
-          </div>
-        `;
-      }).join("");
+          `;
+        })
+        .join("");
   }
+
+  /* =========================================================
+     RENDER SERVICES
+  ========================================================= */
 
   function renderServices() {
     const container =
@@ -477,71 +933,113 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML =
-      services.map(service => `
-        <div class="admin-item">
-          <div class="admin-item-info">
-            ${
-              service.icon_url
-                ? `<img src="${escapeHtml(service.icon_url)}" class="admin-item-icon">`
-                : service.image_url
-                  ? `<img src="${escapeHtml(service.image_url)}" class="admin-item-icon">`
-                  : `<div class="admin-item-icon placeholder-icon">◎</div>`
-            }
+      services
+        .map(service => {
 
-            <div>
-              <strong>
-                ${escapeHtml(service.title)}
-              </strong>
+          const categoryName =
+            service.category_name ||
+            service.category ||
+            "";
 
-              <small>
-                ${
-                  escapeHtml(
-                    service.category_name ||
-                    service.category ||
-                    ""
-                  )
-                }
+          const subcategoryName =
+            service.subcategory_name ||
+            service.subcategory ||
+            "";
+
+          const icon =
+            service.icon_url ||
+            service.image_url ||
+            "";
+
+          return `
+            <div class="admin-item">
+
+              <div class="admin-item-info">
 
                 ${
-                  service.subcategory_name
-                    ? " / " +
-                      escapeHtml(
-                        service.subcategory_name
-                      )
-                    : ""
+                  icon
+                    ? `
+                      <img
+                        src="${escapeHtml(icon)}"
+                        class="admin-item-icon"
+                        alt=""
+                      >
+                    `
+                    : `
+                      <div class="admin-item-icon placeholder-icon">
+                        ◎
+                      </div>
+                    `
                 }
 
-                ${
-                  service.price
-                    ? " — " +
-                      escapeHtml(
-                        service.price
-                      )
-                    : ""
-                }
-              </small>
+                <div>
+
+                  <strong>
+                    ${escapeHtml(
+                      service.title ||
+                      service.name ||
+                      ""
+                    )}
+                  </strong>
+
+                  <small>
+
+                    ${escapeHtml(
+                      categoryName
+                    )}
+
+                    ${
+                      subcategoryName
+                        ? " / " +
+                          escapeHtml(
+                            subcategoryName
+                          )
+                        : ""
+                    }
+
+                    ${
+                      service.price
+                        ? " — " +
+                          escapeHtml(
+                            service.price
+                          )
+                        : ""
+                    }
+
+                  </small>
+
+                </div>
+
+              </div>
+
+              <div class="admin-item-actions">
+
+                <button
+                  type="button"
+                  data-edit-service="${service.id}"
+                >
+                  ویرایش
+                </button>
+
+                <button
+                  type="button"
+                  data-delete-service="${service.id}"
+                  class="danger"
+                >
+                  حذف
+                </button>
+
+              </div>
+
             </div>
-          </div>
-
-          <div class="admin-item-actions">
-            <button
-              type="button"
-              data-edit-service="${service.id}"
-            >
-              ویرایش
-            </button>
-
-            <button
-              type="button"
-              data-delete-service="${service.id}"
-              class="danger"
-            >
-              حذف
-            </button>
-          </div>
-        </div>
-      `).join("");
+          `;
+        })
+        .join("");
   }
+
+  /* =========================================================
+     RENDER ANNOUNCEMENTS
+  ========================================================= */
 
   function renderAnnouncements() {
     const container =
@@ -557,43 +1055,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML =
-      announcements.map(item => `
-        <div class="admin-item">
-          <div class="admin-item-info">
-            <div class="admin-item-icon placeholder-icon">
-              📢
+      announcements
+        .map(item => `
+          <div class="admin-item">
+
+            <div class="admin-item-info">
+
+              <div class="admin-item-icon placeholder-icon">
+                📢
+              </div>
+
+              <div>
+
+                <strong>
+                  ${escapeHtml(
+                    item.title
+                  )}
+                </strong>
+
+                <small>
+                  ${escapeHtml(
+                    item.content
+                  )}
+                </small>
+
+              </div>
+
             </div>
 
-            <div>
-              <strong>
-                ${escapeHtml(item.title)}
-              </strong>
+            <div class="admin-item-actions">
 
-              <small>
-                ${escapeHtml(item.content)}
-              </small>
+              <button
+                type="button"
+                data-edit-announcement="${item.id}"
+              >
+                ویرایش
+              </button>
+
+              <button
+                type="button"
+                data-delete-announcement="${item.id}"
+                class="danger"
+              >
+                حذف
+              </button>
+
             </div>
-          </div>
 
-          <div class="admin-item-actions">
-            <button
-              type="button"
-              data-edit-announcement="${item.id}"
-            >
-              ویرایش
-            </button>
-
-            <button
-              type="button"
-              data-delete-announcement="${item.id}"
-              class="danger"
-            >
-              حذف
-            </button>
           </div>
-        </div>
-      `).join("");
+        `)
+        .join("");
   }
+
+  /* =========================================================
+     RENDER REVIEWS
+  ========================================================= */
 
   function renderReviews() {
     const container =
@@ -609,50 +1125,86 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML =
-      reviews.map(review => `
-        <div class="admin-item">
-          <div class="admin-item-info">
-            ${
-              review.avatar
-                ? `<img src="${escapeHtml(review.avatar)}" class="admin-item-icon">`
-                : `<div class="admin-item-icon placeholder-icon">👤</div>`
-            }
+      reviews
+        .map(review => `
+          <div class="admin-item">
 
-            <div>
-              <strong>
-                ${escapeHtml(review.customer_name)}
-              </strong>
+            <div class="admin-item-info">
 
-              <small>
-                ${escapeHtml(review.content)}
-              </small>
+              ${
+                review.avatar
+                  ? `
+                    <img
+                      src="${escapeHtml(review.avatar)}"
+                      class="admin-item-icon"
+                      alt=""
+                    >
+                  `
+                  : `
+                    <div class="admin-item-icon placeholder-icon">
+                      👤
+                    </div>
+                  `
+              }
 
-              <small>
-                وضعیت:
-                ${escapeHtml(review.status)}
-              </small>
+              <div>
+
+                <strong>
+                  ${escapeHtml(
+                    review.customer_name
+                  )}
+                </strong>
+
+                <small>
+                  ${escapeHtml(
+                    review.content
+                  )}
+                </small>
+
+                <small>
+                  وضعیت:
+                  ${escapeHtml(
+                    review.status
+                  )}
+                </small>
+
+              </div>
+
             </div>
-          </div>
 
-          <div class="admin-item-actions">
-            <button
-              type="button"
-              data-approve-review="${review.id}"
-            >
-              تأیید
-            </button>
+            <div class="admin-item-actions">
 
-            <button
-              type="button"
-              data-delete-review="${review.id}"
-              class="danger"
-            >
-              حذف
-            </button>
+              ${
+                review.status !== "approved"
+                  ? `
+                    <button
+                      type="button"
+                      data-approve-review="${review.id}"
+                    >
+                      تأیید
+                    </button>
+                  `
+                  : ""
+              }
+
+              <button
+                type="button"
+                data-delete-review="${review.id}"
+                class="danger"
+              >
+                حذف
+              </button>
+
+            </div>
+
           </div>
-        </div>
-      `).join("");
+        `)
+        .join("");
   }
+
+  /* =========================================================
+     SETTINGS
+  ========================================================= */
 
   function fillSettings(data) {
     const fields = [
@@ -674,37 +1226,41 @@ document.addEventListener("DOMContentLoaded", () => {
           `[name="${name}"]`
         );
 
-      if (input) {
-        input.value = data[name] || "";
-      }
+      if (!input) return;
+
+      input.value =
+        data?.[name] ?? "";
     });
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  /* =========================================================
+     SAVE FORMS
+  ========================================================= */
 
-  async function saveForm(form, url, method = "POST") {
+  async function saveForm(
+    form,
+    url,
+    method = "POST"
+  ) {
     const button =
       form.querySelector(
         'button[type="submit"]'
       );
 
+    const originalText =
+      button
+        ? button.textContent
+        : "ذخیره";
+
     if (button) {
       button.disabled = true;
-      button.dataset.originalText =
-        button.textContent;
       button.textContent =
         "در حال ذخیره...";
     }
 
     try {
-      const data = formData(form);
+      const data =
+        getFormData(form);
 
       await api(url, {
         method,
@@ -717,49 +1273,330 @@ document.addEventListener("DOMContentLoaded", () => {
           : "با موفقیت ذخیره شد."
       );
 
+      /*
+        حالت ویرایش را پاک می‌کنیم
+      */
+
+      delete form.dataset.editId;
+
       form.reset();
 
-      editing = null;
+      if (button) {
+        button.textContent =
+          "ذخیره";
+      }
 
       await loadAll();
+
     } catch (error) {
+      console.error(
+        "Save error:",
+        error
+      );
+
       showMessage(
-        "ثبت نشد: " + error.message,
+        "ثبت نشد: " +
+        (
+          error.message ||
+          "خطای نامشخص"
+        ),
         "error"
       );
+
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent =
-          button.dataset.originalText ||
-          "ذخیره";
+
+        if (
+          !form.dataset.editId
+        ) {
+          button.textContent =
+            originalText;
+        }
       }
     }
   }
 
-  function bindLogin() {
-    const form = $("#loginForm");
+  /* =========================================================
+     EDIT
+  ========================================================= */
 
-    if (!form) return;
+  function fillEditForm(
+    form,
+    item
+  ) {
+    if (!form || !item) return;
 
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      login();
+    form.dataset.editId =
+      item.id;
+
+    Object.entries(item)
+      .forEach(([key, value]) => {
+        const input =
+          form.querySelector(
+            `[name="${key}"]`
+          );
+
+        if (!input) return;
+
+        if (
+          input.tagName === "SELECT"
+        ) {
+          input.value =
+            value ?? "";
+        } else {
+          input.value =
+            value ?? "";
+        }
+      });
+
+    const button =
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    if (button) {
+      button.textContent =
+        "ذخیره تغییرات";
+    }
+
+    form.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
     });
   }
+
+  function editCategory(id) {
+    const item =
+      categories.find(
+        c =>
+          Number(c.id) ===
+          Number(id)
+      );
+
+    fillEditForm(
+      $("#categoryForm"),
+      item
+    );
+  }
+
+  function editSubcategory(id) {
+    const item =
+      subcategories.find(
+        s =>
+          Number(s.id) ===
+          Number(id)
+      );
+
+    fillEditForm(
+      $("#subcategoryForm"),
+      item
+    );
+  }
+
+  function editService(id) {
+    const item =
+      services.find(
+        s =>
+          Number(s.id) ===
+          Number(id)
+      );
+
+    fillEditForm(
+      $("#serviceForm"),
+      item
+    );
+  }
+
+  function editAnnouncement(id) {
+    const item =
+      announcements.find(
+        a =>
+          Number(a.id) ===
+          Number(id)
+      );
+
+    fillEditForm(
+      $("#announcementForm"),
+      item
+    );
+  }
+
+  /* =========================================================
+     DELETE
+  ========================================================= */
+
+  async function deleteItem(
+    url,
+    question
+  ) {
+    if (
+      !window.confirm(
+        question
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api(url, {
+        method: "DELETE"
+      });
+
+      showMessage(
+        "با موفقیت حذف شد."
+      );
+
+      await loadAll();
+
+    } catch (error) {
+      console.error(
+        "Delete error:",
+        error
+      );
+
+      showMessage(
+        "حذف نشد: " +
+        error.message,
+        "error"
+      );
+    }
+  }
+
+  /* =========================================================
+     APPROVE REVIEW
+  ========================================================= */
+
+  async function approveReview(id) {
+    const review =
+      reviews.find(
+        r =>
+          Number(r.id) ===
+          Number(id)
+      );
+
+    if (!review) {
+      showMessage(
+        "نظر پیدا نشد.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      await api(
+        `/api/reviews/${id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            customer_name:
+              review.customer_name,
+
+            content:
+              review.content,
+
+            avatar:
+              review.avatar || "",
+
+            status:
+              "approved"
+          })
+        }
+      );
+
+      showMessage(
+        "نظر تأیید شد."
+      );
+
+      await loadAll();
+
+    } catch (error) {
+      console.error(
+        "Approve review:",
+        error
+      );
+
+      showMessage(
+        "تأیید نشد: " +
+        error.message,
+        "error"
+      );
+    }
+  }
+
+  /* =========================================================
+     LOGIN FORM
+  ========================================================= */
+
+  function bindLogin() {
+    const form =
+      $("#loginForm");
+
+    if (!form) {
+      console.warn(
+        "loginForm not found"
+      );
+      return;
+    }
+
+    /*
+      جلوگیری از چند بار bind شدن
+    */
+
+    if (
+      form.dataset.bound === "true"
+    ) {
+      return;
+    }
+
+    form.dataset.bound =
+      "true";
+
+    form.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        login();
+      }
+    );
+  }
+
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
 
   function bindLogout() {
     $$(
       "#logoutBtn, [data-action='logout']"
     ).forEach(button => {
+
+      if (
+        button.dataset.bound === "true"
+      ) {
+        return;
+      }
+
+      button.dataset.bound =
+        "true";
+
       button.addEventListener(
         "click",
-        logout
+        event => {
+          event.preventDefault();
+          logout();
+        }
       );
     });
   }
 
+  /* =========================================================
+     FORMS
+  ========================================================= */
+
   function bindForms() {
+
     const categoryForm =
       $("#categoryForm");
 
@@ -777,7 +1614,9 @@ document.addEventListener("DOMContentLoaded", () => {
             id
               ? `/api/categories/${id}`
               : "/api/categories",
-            id ? "PUT" : "POST"
+            id
+              ? "PUT"
+              : "POST"
           );
         }
       );
@@ -800,7 +1639,9 @@ document.addEventListener("DOMContentLoaded", () => {
             id
               ? `/api/subcategories/${id}`
               : "/api/subcategories",
-            id ? "PUT" : "POST"
+            id
+              ? "PUT"
+              : "POST"
           );
         }
       );
@@ -823,7 +1664,9 @@ document.addEventListener("DOMContentLoaded", () => {
             id
               ? `/api/services/${id}`
               : "/api/services",
-            id ? "PUT" : "POST"
+            id
+              ? "PUT"
+              : "POST"
           );
         }
       );
@@ -846,7 +1689,9 @@ document.addEventListener("DOMContentLoaded", () => {
             id
               ? `/api/announcements/${id}`
               : "/api/announcements",
-            id ? "PUT" : "POST"
+            id
+              ? "PUT"
+              : "POST"
           );
         }
       );
@@ -872,22 +1717,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /* =========================================================
+     CATEGORY → SUBCATEGORY
+  ========================================================= */
+
   function bindCategoryChanges() {
+
     $$(
       'select[name="category_id"], #categorySelect, #serviceCategory'
     ).forEach(select => {
+
       select.addEventListener(
         "change",
         () => {
+
+          const categoryId =
+            Number(
+              select.value
+            );
+
+          /*
+            فقط زیردسته مربوط به همین
+            دسته‌بندی نمایش داده شود.
+          */
+
           const target =
+            select.form?.querySelector(
+              'select[name="subcategory_id"], #subcategorySelect, #serviceSubcategory'
+            ) ||
             document.querySelector(
               'select[name="subcategory_id"], #subcategorySelect, #serviceSubcategory'
             );
 
           if (!target) return;
-
-          const categoryId =
-            Number(select.value);
 
           target.innerHTML =
             '<option value="">انتخاب زیردسته</option>';
@@ -895,258 +1757,54 @@ document.addEventListener("DOMContentLoaded", () => {
           subcategories
             .filter(
               sub =>
-                Number(sub.category_id) ===
-                categoryId
+                Number(
+                  sub.category_id
+                ) === categoryId
             )
             .forEach(sub => {
+
               const option =
                 document.createElement(
                   "option"
                 );
 
-              option.value = sub.id;
+              option.value =
+                sub.id;
+
               option.textContent =
                 sub.name;
 
-              target.appendChild(option);
+              target.appendChild(
+                option
+              );
             });
         }
       );
     });
   }
 
-  function editCategory(id) {
-    const item =
-      categories.find(
-        c => Number(c.id) === Number(id)
-      );
-
-    const form =
-      $("#categoryForm");
-
-    if (!item || !form) return;
-
-    form.dataset.editId = item.id;
-
-    Object.entries(item).forEach(
-      ([key, value]) => {
-        const input =
-          form.querySelector(
-            `[name="${key}"]`
-          );
-
-        if (input) {
-          input.value = value ?? "";
-        }
-      }
-    );
-
-    const button =
-      form.querySelector(
-        'button[type="submit"]'
-      );
-
-    if (button) {
-      button.textContent =
-        "ذخیره تغییرات";
-    }
-
-    form.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
-
-  function editSubcategory(id) {
-    const item =
-      subcategories.find(
-        s => Number(s.id) === Number(id)
-      );
-
-    const form =
-      $("#subcategoryForm");
-
-    if (!item || !form) return;
-
-    form.dataset.editId = item.id;
-
-    Object.entries(item).forEach(
-      ([key, value]) => {
-        const input =
-          form.querySelector(
-            `[name="${key}"]`
-          );
-
-        if (input) {
-          input.value = value ?? "";
-        }
-      }
-    );
-
-    const button =
-      form.querySelector(
-        'button[type="submit"]'
-      );
-
-    if (button) {
-      button.textContent =
-        "ذخیره تغییرات";
-    }
-
-    form.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
-
-  function editService(id) {
-    const item =
-      services.find(
-        s => Number(s.id) === Number(id)
-      );
-
-    const form =
-      $("#serviceForm");
-
-    if (!item || !form) return;
-
-    form.dataset.editId = item.id;
-
-    Object.entries(item).forEach(
-      ([key, value]) => {
-        const input =
-          form.querySelector(
-            `[name="${key}"]`
-          );
-
-        if (input) {
-          input.value = value ?? "";
-        }
-      }
-    );
-
-    const button =
-      form.querySelector(
-        'button[type="submit"]'
-      );
-
-    if (button) {
-      button.textContent =
-        "ذخیره تغییرات";
-    }
-
-    form.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
-
-  function editAnnouncement(id) {
-    const item =
-      announcements.find(
-        a => Number(a.id) === Number(id)
-      );
-
-    const form =
-      $("#announcementForm");
-
-    if (!item || !form) return;
-
-    form.dataset.editId = item.id;
-
-    Object.entries(item).forEach(
-      ([key, value]) => {
-        const input =
-          form.querySelector(
-            `[name="${key}"]`
-          );
-
-        if (input) {
-          input.value = value ?? "";
-        }
-      }
-    );
-
-    const button =
-      form.querySelector(
-        'button[type="submit"]'
-      );
-
-    if (button) {
-      button.textContent =
-        "ذخیره تغییرات";
-    }
-
-    form.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
-
-  async function deleteItem(
-    url,
-    message = "حذف شود؟"
-  ) {
-    if (!confirm(message)) return;
-
-    try {
-      await api(url, {
-        method: "DELETE"
-      });
-
-      showMessage("با موفقیت حذف شد.");
-      await loadAll();
-    } catch (error) {
-      showMessage(
-        "حذف نشد: " + error.message,
-        "error"
-      );
-    }
-  }
-
-  async function approveReview(id) {
-    const review =
-      reviews.find(
-        r => Number(r.id) === Number(id)
-      );
-
-    if (!review) return;
-
-    try {
-      await api(
-        `/api/reviews/${id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            customer_name:
-              review.customer_name,
-            content:
-              review.content,
-            avatar:
-              review.avatar || "",
-            status: "approved"
-          })
-        }
-      );
-
-      showMessage("نظر تأیید شد.");
-      await loadAll();
-    } catch (error) {
-      showMessage(
-        "تأیید نشد: " +
-        error.message,
-        "error"
-      );
-    }
-  }
+  /* =========================================================
+     ACTION BUTTONS
+  ========================================================= */
 
   function bindActions() {
+
     document.addEventListener(
       "click",
       event => {
+
         const target =
           event.target.closest(
-            "[data-edit-category], [data-delete-category], [data-edit-subcategory], [data-delete-subcategory], [data-edit-service], [data-delete-service], [data-edit-announcement], [data-delete-announcement], [data-approve-review], [data-delete-review]"
+            "[data-edit-category]," +
+            "[data-delete-category]," +
+            "[data-edit-subcategory]," +
+            "[data-delete-subcategory]," +
+            "[data-edit-service]," +
+            "[data-delete-service]," +
+            "[data-edit-announcement]," +
+            "[data-delete-announcement]," +
+            "[data-approve-review]," +
+            "[data-delete-review]"
           );
 
         if (!target) return;
@@ -1157,6 +1815,7 @@ document.addEventListener("DOMContentLoaded", () => {
           editCategory(
             target.dataset.editCategory
           );
+          return;
         }
 
         if (
@@ -1166,6 +1825,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `/api/categories/${target.dataset.deleteCategory}`,
             "این دسته‌بندی و اطلاعات وابسته حذف شود؟"
           );
+          return;
         }
 
         if (
@@ -1174,6 +1834,7 @@ document.addEventListener("DOMContentLoaded", () => {
           editSubcategory(
             target.dataset.editSubcategory
           );
+          return;
         }
 
         if (
@@ -1183,6 +1844,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `/api/subcategories/${target.dataset.deleteSubcategory}`,
             "این زیردسته حذف شود؟"
           );
+          return;
         }
 
         if (
@@ -1191,6 +1853,7 @@ document.addEventListener("DOMContentLoaded", () => {
           editService(
             target.dataset.editService
           );
+          return;
         }
 
         if (
@@ -1200,6 +1863,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `/api/services/${target.dataset.deleteService}`,
             "این سرویس حذف شود؟"
           );
+          return;
         }
 
         if (
@@ -1208,6 +1872,7 @@ document.addEventListener("DOMContentLoaded", () => {
           editAnnouncement(
             target.dataset.editAnnouncement
           );
+          return;
         }
 
         if (
@@ -1217,6 +1882,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `/api/announcements/${target.dataset.deleteAnnouncement}`,
             "این اعلان حذف شود؟"
           );
+          return;
         }
 
         if (
@@ -1225,6 +1891,7 @@ document.addEventListener("DOMContentLoaded", () => {
           approveReview(
             target.dataset.approveReview
           );
+          return;
         }
 
         if (
@@ -1235,30 +1902,44 @@ document.addEventListener("DOMContentLoaded", () => {
             "این نظر حذف شود؟"
           );
         }
+
       }
     );
   }
 
+  /* =========================================================
+     NAVIGATION
+  ========================================================= */
+
   function bindNavigation() {
+
     $$(
       "[data-section], .admin-nav a"
     ).forEach(link => {
+
       link.addEventListener(
         "click",
         event => {
+
           const selector =
             link.dataset.section ||
             link.getAttribute("href");
 
-          if (!selector?.startsWith("#"))
+          if (
+            !selector ||
+            !selector.startsWith("#")
+          ) {
             return;
+          }
 
           const section =
             document.querySelector(
               selector
             );
 
-          if (!section) return;
+          if (!section) {
+            return;
+          }
 
           event.preventDefault();
 
@@ -1269,7 +1950,9 @@ document.addEventListener("DOMContentLoaded", () => {
               );
             });
 
-          section.classList.add("active");
+          section.classList.add(
+            "active"
+          );
 
           section.scrollIntoView({
             behavior: "smooth",
@@ -1280,12 +1963,27 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /* =========================================================
+     START
+  ========================================================= */
+
   bindLogin();
   bindLogout();
   bindForms();
   bindActions();
   bindNavigation();
   bindCategoryChanges();
+
+  /*
+    ابتدا صفحه لاگین را آماده می‌کنیم
+    تا پنل مخفی قبلی مزاحم نباشد.
+  */
+
+  showLogin();
+
+  /*
+    بررسی Session
+  */
 
   checkLogin();
 });
