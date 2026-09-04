@@ -3,13 +3,18 @@
   "version": "3.0.0",
   "description": "OMH Social Services - Render Free + Supabase edition",
   "main": "server.js",
-  "scripts": {"start":"node server.js"},
-  "dependencies": {
-    "@supabase/supabase-js":"^2.57.4",
-    "dotenv":"^16.6.1",
-    "express":"^4.21.2",
-    "express-session":"^1.18.1",
-    "pg":"^8.16.3"
+  "scripts": {
+    "start": "node server.js"
   },
-  "engines": {"node":"20.x"}
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "pg": "^8.16.3",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": "20.x"
+  }
 }

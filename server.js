@@ -5,6 +5,7 @@ const path=require('path');
 const crypto=require('crypto');
 const {Pool}=require('pg');
 const {createClient}=require('@supabase/supabase-js');
+const WebSocket=require('ws');
 
 const app=express();
 const PORT=Number(process.env.PORT)||10000;
@@ -27,7 +28,7 @@ if(isProduction){
 }
 
 const pool=new Pool({connectionString:DATABASE_URL||'postgres://localhost/omh',ssl:DATABASE_URL?{rejectUnauthorized:false}:false,max:5,idleTimeoutMillis:30000,connectionTimeoutMillis:10000});
-const supabase=(SUPABASE_URL&&SUPABASE_SERVICE_ROLE_KEY)?createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}}):null;
+const supabase=(SUPABASE_URL&&SUPABASE_SERVICE_ROLE_KEY)?createClient(SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket}}):null;
 
 app.disable('x-powered-by');
 app.set('trust proxy',1);
