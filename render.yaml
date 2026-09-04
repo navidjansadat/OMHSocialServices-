@@ -2,20 +2,21 @@ services:
   - type: web
     name: omh-social-services
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /healthz
-    numInstances: 1
-    disk:
-      name: omh-social-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATA_DIR
-        value: /var/data
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: omh-uploads
       - key: ADMIN_PASSWORD
         sync: false
       - key: SESSION_SECRET
